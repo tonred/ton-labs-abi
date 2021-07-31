@@ -12,15 +12,15 @@
 */
 
 use crate::{
-    error::AbiError, event::Event, function::Function, param::Param, 
-    param_type::ParamType, token::Token
+    error::AbiError, event::Event, function::Function, param::Param, param_type::ParamType,
+    token::Token,
 };
-use std::io;
-use std::collections::HashMap;
-use serde::de::{Error as SerdeError};
+use serde::de::Error as SerdeError;
 use serde_json;
+use std::collections::HashMap;
+use std::io;
 use ton_block::Serializable;
-use ton_types::{BuilderData, error, fail, HashmapE, Result, SliceData};
+use ton_types::{error, fail, BuilderData, HashmapE, Result, SliceData};
 
 pub const SUPPORTED_VERSIONS: [u8; 2] = [1, 2];
 
@@ -40,25 +40,35 @@ impl<'de> serde::de::Visitor<'de> for StringVisitor {
         formatter.write_str("String")
     }
 
-    fn visit_string<E>(self, v: String) -> std::result::Result<Self::Value, E> where E: serde::de::Error {
+    fn visit_string<E>(self, v: String) -> std::result::Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
         Ok(v)
     }
 
-    fn visit_str<E>(self, v: &str) -> std::result::Result<Self::Value, E> where E: serde::de::Error {
+    fn visit_str<E>(self, v: &str) -> std::result::Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
         Ok(v.to_string())
     }
 }
 
 pub fn deserialize_opt_u32_from_string<'de, D>(d: D) -> std::result::Result<Option<u32>, D::Error>
-    where D: serde::Deserializer<'de>
+where
+    D: serde::Deserializer<'de>,
 {
     match d.deserialize_string(StringVisitor) {
         Err(_) => Ok(None),
         Ok(string) => {
             if !string.starts_with("0x") {
-                return Err(D::Error::custom(format!("Number parsing error: number must be prefixed with 0x ({})", string)));
+                return Err(D::Error::custom(format!(
+                    "Number parsing error: number must be prefixed with 0x ({})",
+                    string
+                )));
             }
-        
+
             u32::from_str_radix(&string[2..], 16)
                 .map_err(|err| D::Error::custom(format!("Error parsing number: {}", err)))
                 .map(|value| Some(value))
@@ -80,7 +90,7 @@ pub(crate) struct SerdeFunction {
     /// Calculated function ID
     #[serde(default)]
     #[serde(deserialize_with = "deserialize_opt_u32_from_string")]
-    pub id: Option<u32>
+    pub id: Option<u32>,
 }
 
 /// Contract event specification.
@@ -93,7 +103,7 @@ pub(crate) struct SerdeEvent {
     pub inputs: Vec<Param>,
     #[serde(default)]
     #[serde(deserialize_with = "deserialize_opt_u32_from_string")]
-    pub id: Option<u32>
+    pub id: Option<u32>,
 }
 
 fn bool_true() -> bool {
@@ -103,11 +113,11 @@ fn bool_true() -> bool {
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 struct SerdeContract {
     /// ABI version.
-    #[serde(rename="ABI version")]
+    #[serde(rename = "ABI version")]
     pub abi_version: u8,
     /// Set timestamp in message.
-    #[serde(rename="setTime")]
-    #[serde(default="bool_true")]
+    #[serde(rename = "setTime")]
+    #[serde(default = "bool_true")]
     pub set_time: bool,
     /// Header parameters.
     #[serde(default)]
@@ -125,7 +135,7 @@ struct SerdeContract {
 pub struct DecodedMessage {
     pub function_name: String,
     pub tokens: Vec<Token>,
-    pub params: Vec<Param>
+    pub params: Vec<Param>,
 }
 
 /// API building calls to contracts ABI.
@@ -146,23 +156,29 @@ pub struct Contract {
 impl Contract {
     /// Loads contract from json.
     pub fn load<T: io::Read>(reader: T) -> Result<Self> {
-        // A little trick similar to `Param` deserialization: first deserialize JSON into temporary 
+        // A little trick similar to `Param` deserialization: first deserialize JSON into temporary
         // struct `SerdeContract` containing necessary fields and then repack fields into HashMap
         let mut serde_contract: SerdeContract = serde_json::from_reader(reader)?;
         let version = serde_contract.abi_version;
 
         if !SUPPORTED_VERSIONS.contains(&version) {
-            fail!(AbiError::WrongVersion{ version: serde_contract.abi_version });
+            fail!(AbiError::WrongVersion {
+                version: serde_contract.abi_version
+            });
         }
 
         if version == 1 {
             if serde_contract.header.len() != 0 {
                 return Err(AbiError::InvalidData {
-                    msg: "Header parameters are not supported in ABI v1".into()
-                }.into());
+                    msg: "Header parameters are not supported in ABI v1".into(),
+                }
+                .into());
             }
             if serde_contract.set_time {
-                serde_contract.header.push(Param { name: "time".into(), kind: ParamType::Time});
+                serde_contract.header.push(Param {
+                    name: "time".into(),
+                    kind: ParamType::Time,
+                });
             }
         }
 
@@ -179,12 +195,15 @@ impl Contract {
             Self::check_params_support(version, function.outputs.iter())?;
             result.functions.insert(
                 function.name.clone(),
-                Function::from_serde(version, function, result.header.clone()));
+                Function::from_serde(version, function, result.header.clone()),
+            );
         }
 
         for event in serde_contract.events {
             Self::check_params_support(version, event.inputs.iter())?;
-            result.events.insert(event.name.clone(), Event::from_serde(version, event));
+            result
+                .events
+                .insert(event.name.clone(), Event::from_serde(version, event));
         }
 
         Self::check_params_support(version, serde_contract.data.iter().map(|val| &val.value))?;
@@ -196,14 +215,15 @@ impl Contract {
     }
 
     fn check_params_support<'a, T>(abi_version: u8, params: T) -> Result<()>
-        where 
-        T: std::iter::Iterator<Item = &'a Param>
+    where
+        T: std::iter::Iterator<Item = &'a Param>,
     {
         for param in params {
             if !param.kind.is_supported(abi_version) {
                 return Err(AbiError::InvalidData {
-                    msg: "Header parameters are not supported in ABI v1".into()
-                }.into());
+                    msg: "Header parameters are not supported in ABI v1".into(),
+                }
+                .into());
             }
         }
         Ok(())
@@ -211,19 +231,28 @@ impl Contract {
 
     /// Returns `Function` struct with provided function name.
     pub fn function(&self, name: &str) -> Result<&Function> {
-        self.functions.get(name).ok_or_else(|| AbiError::InvalidName { name: name.to_owned() }.into())
+        self.functions.get(name).ok_or_else(|| {
+            AbiError::InvalidName {
+                name: name.to_owned(),
+            }
+            .into()
+        })
     }
 
     /// Returns `Function` struct with provided function id.
     pub fn function_by_id(&self, id: u32, input: bool) -> Result<&Function> {
         for (_, func) in &self.functions {
-            let func_id = if input { func.get_input_id() } else { func.get_output_id() };
+            let func_id = if input {
+                func.get_input_id()
+            } else {
+                func.get_output_id()
+            };
             if func_id == id {
                 return Ok(func);
             }
         }
 
-       Err(AbiError::InvalidFunctionId { id }.into())
+        Err(AbiError::InvalidFunctionId { id }.into())
     }
 
     /// Returns `Event` struct with provided function id.
@@ -260,25 +289,25 @@ impl Contract {
     /// Decodes contract answer and returns name of the function called
     pub fn decode_output(&self, data: SliceData, internal: bool) -> Result<DecodedMessage> {
         let original_data = data.clone();
-        
+
         let func_id = Function::decode_output_id(data)?;
 
-        if let Ok(func) = self.function_by_id(func_id, false){
+        if let Ok(func) = self.function_by_id(func_id, false) {
             let tokens = func.decode_output(original_data, internal)?;
 
-            Ok( DecodedMessage {
+            Ok(DecodedMessage {
                 function_name: func.name.clone(),
-                tokens: tokens,
-                params: func.output_params().clone()
+                tokens,
+                params: func.output_params().clone(),
             })
         } else {
             let event = self.event_by_id(func_id)?;
             let tokens = event.decode_input(original_data)?;
 
-            Ok( DecodedMessage {
+            Ok(DecodedMessage {
                 function_name: event.name.clone(),
-                tokens: tokens,
-                params: event.input_params()
+                tokens,
+                params: event.input_params(),
             })
         }
     }
@@ -286,17 +315,17 @@ impl Contract {
     /// Decodes contract answer and returns name of the function called
     pub fn decode_input(&self, data: SliceData, internal: bool) -> Result<DecodedMessage> {
         let original_data = data.clone();
-        
+
         let func_id = Function::decode_input_id(self.abi_version, data, &self.header, internal)?;
 
         let func = self.function_by_id(func_id, true)?;
 
         let tokens = func.decode_input(original_data, internal)?;
 
-        Ok( DecodedMessage {
+        Ok(DecodedMessage {
             function_name: func.name.clone(),
-            tokens: tokens,
-            params: func.input_params().clone()
+            tokens,
+            params: func.input_params().clone(),
         })
     }
 
@@ -304,23 +333,19 @@ impl Contract {
 
     /// Changes initial values for public contract variables
     pub fn update_data(&self, data: SliceData, tokens: &[Token]) -> Result<SliceData> {
-        let mut map = HashmapE::with_hashmap(
-            Self::DATA_MAP_KEYLEN, 
-            data.reference_opt(0),
-        );
+        let mut map = HashmapE::with_hashmap(Self::DATA_MAP_KEYLEN, data.reference_opt(0));
 
         for token in tokens {
             let builder = token.value.pack_into_chain(self.abi_version)?;
-            let key = self.data
+            let key = self
+                .data
                 .get(&token.name)
-                .ok_or_else(||
-                    AbiError::InvalidData { msg: format!("data item {} not found in contract ABI", token.name) }
-                )?.key;
+                .ok_or_else(|| AbiError::InvalidData {
+                    msg: format!("data item {} not found in contract ABI", token.name),
+                })?
+                .key;
 
-                map.set_builder(
-                    key.write_to_new_cell().unwrap().into(), 
-                    &builder, 
-                )?;
+            map.set_builder(key.write_to_new_cell().unwrap().into(), &builder)?;
         }
 
         Ok(map.write_to_new_cell()?.into())
@@ -328,10 +353,7 @@ impl Contract {
 
     // Gets public key from contract data
     pub fn get_pubkey(data: &SliceData) -> Result<Option<Vec<u8>>> {
-        let map = HashmapE::with_hashmap(
-            Self::DATA_MAP_KEYLEN,
-            data.reference_opt(0),
-        );
+        let map = HashmapE::with_hashmap(Self::DATA_MAP_KEYLEN, data.reference_opt(0));
         map.get(0u64.write_to_new_cell()?.into())
             .map(|opt| opt.map(|slice| slice.get_bytestring(0)))
     }
@@ -342,14 +364,8 @@ impl Contract {
         let pubkey_len = pubkey_vec.len() * 8;
         let value = BuilderData::with_raw(pubkey_vec, pubkey_len).unwrap_or_default();
 
-        let mut map = HashmapE::with_hashmap(
-            Self::DATA_MAP_KEYLEN, 
-            data.reference_opt(0)
-        );
-        map.set_builder(
-            0u64.write_to_new_cell().unwrap().into(), 
-            &value, 
-        )?;
+        let mut map = HashmapE::with_hashmap(Self::DATA_MAP_KEYLEN, data.reference_opt(0));
+        map.set_builder(0u64.write_to_new_cell().unwrap().into(), &value)?;
         Ok(map.write_to_new_cell()?.into())
     }
 
@@ -358,7 +374,7 @@ impl Contract {
         &self,
         signature: &[u8],
         public_key: Option<&[u8]>,
-        function_call: SliceData
+        function_call: SliceData,
     ) -> Result<BuilderData> {
         Function::add_sign_to_encoded_input(self.abi_version, signature, public_key, function_call)
     }

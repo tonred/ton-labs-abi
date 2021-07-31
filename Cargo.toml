@@ -3,8 +3,8 @@ name = "ton_abi"
 version = "1.0.1"
 
 [dependencies]
-ton_types = { git = "https://github.com/tonlabs/ton-labs-types.git" }
-ton_block = { git = "https://github.com/tonlabs/ton-labs-block.git" }
+ton_types = { git = "https://github.com/broxus/ton-labs-types.git" }
+ton_block = { git = "https://github.com/broxus/ton-labs-block.git" }
 
 base64 = "0.10.0"
 pretty_assertions = "0.5.1"
