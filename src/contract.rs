@@ -16,6 +16,7 @@ use crate::{
     token::Token,
 };
 use serde::de::Error as SerdeError;
+use serde::Deserialize;
 use serde_json;
 use std::collections::HashMap;
 use std::io;

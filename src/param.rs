@@ -13,7 +13,8 @@
 
 //! Function param.
 use crate::param_type::ParamType;
-use serde::de::{Deserialize, Deserializer, Error};
+use serde::de::{Deserializer, Error};
+use serde::Deserialize;
 
 /// Function param.
 #[derive(Debug, Clone, PartialEq, Eq)]

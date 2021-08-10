@@ -138,9 +138,9 @@ impl Function {
         // Sha256 hash of signature
         let mut hasher = Sha256::new();
 
-        hasher.input(&signature.as_bytes());
+        hasher.update(&signature.as_bytes());
 
-        let function_hash = hasher.result();
+        let function_hash = hasher.finalize();
 
         let mut bytes: [u8; 4] = [0; 4];
         bytes.copy_from_slice(&function_hash[..4]);
