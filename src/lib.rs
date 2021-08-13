@@ -22,7 +22,6 @@ extern crate ed25519;
 extern crate ed25519_dalek;
 extern crate base64;
 extern crate chrono;
-extern crate failure;
 extern crate num_traits;
 
 pub mod contract;

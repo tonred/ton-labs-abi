@@ -11,96 +11,96 @@
 * limitations under the License.
 */
 
-#[derive(Debug, failure::Fail)]
+#[derive(Debug, thiserror::Error)]
 pub enum AbiError {
 
-    #[fail(display = "Invalid data: {}", msg)]
+    #[error( "Invalid data: {}", msg)]
     InvalidData {
         msg: String
     },
 
-    #[fail(display = "Invalid name: {}", name)]
+    #[error( "Invalid name: {}", name)]
     InvalidName {
         name: String
     },
 
-    #[fail(display = "Invalid function id: {:X}", id)]
+    #[error( "Invalid function id: {:X}", id)]
     InvalidFunctionId {
         id: u32
     },
 
-    #[fail(display = "Deserialization error {}: {}", msg, cursor)]
+    #[error( "Deserialization error {}: {}", msg, cursor)]
     DeserializationError {
         msg: &'static str,
         cursor: ton_types::SliceData
     },
 
-    #[fail(display = "Not implemented")]
+    #[error( "Not implemented")]
     NotImplemented,
 
-    #[fail(display = "Wrong parameters count. Expected: {}, provided: {}", expected, provided)]
+    #[error( "Wrong parameters count. Expected: {}, provided: {}", expected, provided)]
     WrongParametersCount {
         expected: usize,
         provided: usize
     },
 
-    #[fail(display = "Wrong parameter type")]
+    #[error( "Wrong parameter type")]
     WrongParameterType,
 
-    #[fail(display = "Wrong data format:\n{}", val)]
+    #[error( "Wrong data format:\n{}", val)]
     WrongDataFormat {
         val: serde_json::Value
     },
 
-    #[fail(display = "Invalid parameter length:\n{}", val)]
+    #[error( "Invalid parameter length:\n{}", val)]
     InvalidParameterLength {
         val: serde_json::Value
     },
 
-    #[fail(display = "Invalid parameter value:\n{}", val)]
+    #[error( "Invalid parameter value:\n{}", val)]
     InvalidParameterValue {
         val: serde_json::Value
     },
 
-    #[fail(display = "Incomplete deserialization error: {}", cursor)]
+    #[error( "Incomplete deserialization error: {}", cursor)]
     IncompleteDeserializationError {
         cursor: ton_types::SliceData
     },
 
-    #[fail(display = "Invalid input data: {}", msg)]
+    #[error( "Invalid input data: {}", msg)]
     InvalidInputData {
         msg: String
     },
 
-    #[fail(display = "Wrong version: {}", version)]
+    #[error( "Wrong version: {}", version)]
     WrongVersion {
         version: u8
     },
 
-    #[fail(display = "Wrong function ID: {:x}", id)]
+    #[error( "Wrong function ID: {:x}", id)]
     WrongId {
         id: u32
     },
 
-    #[fail(display = "IO error: {}", err)]
+    #[error( "IO error: {}", err)]
     Io { 
         err: std::io::Error
     },
 
-    #[fail(display = "Serde json error: {}", err)]
+    #[error( "Serde json error: {}", err)]
     SerdeError {
         err: serde_json::Error
     },
 
-    #[fail(display = "Try from int error: {}", err)]
+    #[error( "Try from int error: {}", err)]
     TryFromIntError {
         err: std::num::TryFromIntError
     },
 
-    #[fail(display = "Tuple description should contain non empty `components` field")]
+    #[error( "Tuple description should contain non empty `components` field")]
     EmptyComponents,
 
-    #[fail(display = "Type description contains non empty `components` field but it is not a tuple")]
+    #[error( "Type description contains non empty `components` field but it is not a tuple")]
     UnusedComponents,
 }
 
