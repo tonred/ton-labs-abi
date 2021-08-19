@@ -18,6 +18,7 @@ use crate::{
 use serde::de::Error as SerdeError;
 use serde::Deserialize;
 use serde_json;
+use smallvec::SmallVec;
 use std::collections::HashMap;
 use std::io;
 use ton_block::Serializable;
@@ -361,7 +362,7 @@ impl Contract {
 
     /// Sets public key into contract data
     pub fn insert_pubkey(data: SliceData, pubkey: &[u8]) -> Result<SliceData> {
-        let pubkey_vec = pubkey.to_vec();
+        let pubkey_vec = SmallVec::from_slice(pubkey);
         let pubkey_len = pubkey_vec.len() * 8;
         let value = BuilderData::with_raw(pubkey_vec, pubkey_len).unwrap_or_default();
 

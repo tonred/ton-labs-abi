@@ -1,6 +1,7 @@
 [package]
 name = "ton_abi"
 version = "1.0.1"
+edition = "2018"
 
 [dependencies]
 ton_types = { git = "https://github.com/broxus/ton-labs-types.git" }
@@ -19,6 +20,7 @@ byteorder = "1.3.2"
 anyhow = "1.0.42"
 num-traits = "0.2.11"
 thiserror = "1.0.26"
+smallvec = { version = "1.6.1", features = ["const_generics", "union", "write"] }
 
 [dev-dependencies.rand]
 version = "0.7.3"

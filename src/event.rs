@@ -11,9 +11,10 @@
 * limitations under the License.
 */
 
-use {Function, Param, Token, TokenValue};
-use contract::SerdeEvent;
 use ton_types::{Result, SliceData};
+
+use crate::{Function, Param, Token, TokenValue};
+use crate::contract::SerdeEvent;
 use crate::error::AbiError;
 
 /// Contract event specification.

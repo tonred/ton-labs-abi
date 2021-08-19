@@ -19,10 +19,11 @@ use crate::{
     token::{Token, TokenValue},
 };
 
-use contract::SerdeFunction;
+use crate::contract::SerdeFunction;
 use ed25519::signature::Signer;
 use ed25519_dalek::{Keypair, SIGNATURE_LENGTH};
 use sha2::{Digest, Sha256};
+use smallvec::SmallVec;
 use std::collections::HashMap;
 use ton_block::Serializable;
 use ton_types::{error, fail, BuilderData, Cell, IBitstring, Result, SliceData};
@@ -381,7 +382,7 @@ impl Function {
                 });
             }
             if let Some(signature) = signature {
-                let mut signature = signature.to_vec();
+                let mut signature = SmallVec::from_slice(signature);
                 if let Some(public_key) = public_key {
                     signature.extend_from_slice(public_key);
                 }

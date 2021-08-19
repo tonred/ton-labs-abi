@@ -14,8 +14,8 @@
 //! Function and event param types.
 
 use std::fmt;
-use Param;
 
+use crate::Param;
 use crate::AbiError;
 
 use ton_types::{error, Result};
