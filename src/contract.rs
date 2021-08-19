@@ -362,7 +362,7 @@ impl Contract {
 
     /// Sets public key into contract data
     pub fn insert_pubkey(data: SliceData, pubkey: &[u8]) -> Result<SliceData> {
-        let pubkey_vec = SmallVec::from(pubkey);
+        let pubkey_vec = SmallVec::from_slice(pubkey);
         let pubkey_len = pubkey_vec.len() * 8;
         let value = BuilderData::with_raw(pubkey_vec, pubkey_len).unwrap_or_default();
 

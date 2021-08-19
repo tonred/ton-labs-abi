@@ -382,7 +382,7 @@ impl Function {
                 });
             }
             if let Some(signature) = signature {
-                let mut signature = SmallVec::from(signature);
+                let mut signature = SmallVec::from_slice(signature);
                 if let Some(public_key) = public_key {
                     signature.extend_from_slice(public_key);
                 }
