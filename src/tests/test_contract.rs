@@ -3,7 +3,7 @@ use std::io::Cursor;
 use ton_block::{Deserializable, StateInit};
 use ton_types::{deserialize_cells_tree, Result, SliceData};
 
-use Contract;
+use crate::Contract;
 
 const DEPOOL_TVC: &[u8] = include_bytes!("data/DePool.tvc");
 const PUB_KEY: [u8; ed25519_dalek::PUBLIC_KEY_LENGTH] = [

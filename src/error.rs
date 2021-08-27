@@ -72,10 +72,8 @@ pub enum AbiError {
         msg: String
     },
 
-    #[error( "Wrong version: {}", version)]
-    WrongVersion {
-        version: u8
-    },
+    #[error("Invalid version: {}", .0)]
+    InvalidVersion(String),
 
     #[error( "Wrong function ID: {:x}", id)]
     WrongId {

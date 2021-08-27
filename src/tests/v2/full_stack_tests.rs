@@ -16,8 +16,9 @@ use ed25519::signature::{Signature, Signer};
 use ton_types::{BuilderData, SliceData, IBitstring};
 use ton_types::dictionary::HashmapE;
 use ton_block::{MsgAddressInt, Serializable};
+use smallvec::smallvec;
 
-use json_abi::*;
+use crate::json_abi::*;
 
 const WALLET_ABI: &str = r#"{
     "ABI version": 2,
@@ -251,7 +252,7 @@ fn test_signed_call() {
 
     let response_tree = SliceData::from(
         BuilderData::with_bitstring(
-            vec![0xA2, 0x38, 0xB5, 0x8A, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80])
+            smallvec![0xA2, 0x38, 0xB5, 0x8A, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80])
         .unwrap());
 
     let response = decode_function_response(
@@ -340,7 +341,7 @@ fn test_add_signature_full() {
 fn test_find_event() {
     let event_tree = SliceData::from(
         BuilderData::with_bitstring(
-            vec![0x0C, 0xAF, 0x24, 0xBE, 0xFF, 0x80])
+            smallvec![0x0C, 0xAF, 0x24, 0xBE, 0xFF, 0x80])
         .unwrap());
 
     let decoded = decode_unknown_function_response(WALLET_ABI.to_owned(), event_tree, false).unwrap();
@@ -355,7 +356,7 @@ fn test_store_pubkey() {
     let test_pubkey = vec![11u8; 32];
     test_map.set_builder(
         0u64.write_to_new_cell().unwrap().into(),
-        &BuilderData::with_raw(vec![0u8; 32], 256).unwrap(),
+        &BuilderData::with_raw(smallvec![0u8; 32], 256).unwrap(),
     ).unwrap();
 
     let data = test_map.write_to_new_cell().unwrap();
@@ -377,7 +378,7 @@ fn test_update_contract_data() {
     let mut test_map = HashmapE::with_bit_len(Contract::DATA_MAP_KEYLEN);
     test_map.set_builder(
         0u64.write_to_new_cell().unwrap().into(),
-        &BuilderData::with_raw(vec![0u8; 32], 256).unwrap(),
+        &BuilderData::with_raw(smallvec![0u8; 32], 256).unwrap(),
     ).unwrap();
 
     let params = r#"{
@@ -418,4 +419,33 @@ fn test_update_contract_data() {
     .unwrap();
 
     assert_eq!(owner_slice.get_bytestring(0), vec![0x22; 32]);
+}
+
+const ABI_WITH_FIELDS: &str = r#"{
+    "version": "2.1",
+    "functions": [],
+    "fields": [
+        {"name":"__pubkey","type":"uint256"},
+        {"name":"__timestamp","type":"uint64"},
+        {"name":"ok","type":"bool"},
+        {"name":"value","type":"uint32"}
+    ]
+}"#;
+
+#[test]
+fn test_decode_storage_fields() {
+    let mut storage = BuilderData::new();
+    storage.append_bitstring(&[vec![0x55; 32], vec![0x80]].join(&[][..])).unwrap();
+    storage.append_u64(123).unwrap();
+    storage.append_bit_one().unwrap();
+    storage.append_u32(456).unwrap();
+
+    let decoded = decode_storage_fields(ABI_WITH_FIELDS, storage.into()).unwrap();
+
+    assert_eq!(decoded, serde_json::json!({
+        "__pubkey": format!("0x{}", hex::encode([0x55; 32])),
+        "__timestamp":"123",
+        "ok": true,
+        "value": "456"
+    }).to_string());
 }

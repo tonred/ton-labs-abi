@@ -16,8 +16,9 @@ use ed25519::signature::{Signature, Signer};
 use ton_types::{BuilderData, SliceData};
 use ton_types::dictionary::HashmapE;
 use ton_block::{MsgAddressInt, Serializable};
+use smallvec::smallvec;
 
-use json_abi::*;
+use crate::json_abi::*;
 
 const WALLET_ABI: &str = r#"{
     "ABI version": 1,
@@ -146,7 +147,7 @@ fn test_constructor_call() {
         None,
     ).unwrap();
 
-    let mut expected_tree = BuilderData::with_bitstring(vec![0x54, 0xc1, 0xf4, 0x0f, 0x80]).unwrap();
+    let mut expected_tree = BuilderData::with_bitstring(smallvec![0x54, 0xc1, 0xf4, 0x0f, 0x80]).unwrap();
     expected_tree.prepend_reference(BuilderData::new());
 
     let test_tree = SliceData::from(test_tree);
@@ -224,7 +225,7 @@ fn test_signed_call() {
         serde_json::from_str::<serde_json::Value>(&expected_params).unwrap());
     assert_eq!(response.function_name, "createArbitraryLimit");
 
-    let mut vec = vec![0x3C, 0x0B, 0xB9, 0xBC];
+    let mut vec = smallvec![0x3C, 0x0B, 0xB9, 0xBC];
     vec.resize(vec.len() + 31, 0);
     vec.extend_from_slice(&[0x0C, 0x00, 0x00, 0x00, 0x1E, 0x80]);
 
@@ -242,7 +243,7 @@ fn test_signed_call() {
 
     let response_tree = SliceData::from(
         BuilderData::with_bitstring(
-            vec![0xBC, 0x0B, 0xB9, 0xBC, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80])
+            smallvec![0xBC, 0x0B, 0xB9, 0xBC, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80])
         .unwrap());
 
     let response = decode_function_response(
@@ -284,7 +285,7 @@ fn test_not_signed_call() {
     )
     .unwrap();
 
-    let mut expected_tree = BuilderData::with_bitstring(vec![
+    let mut expected_tree = BuilderData::with_bitstring(smallvec![
             0x23, 0xF3, 0x3E, 0x2F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x80
         ]).unwrap();
     expected_tree.prepend_reference(BuilderData::new());
@@ -323,7 +324,7 @@ fn test_add_signature_full() {
 fn test_find_event() {
     let event_tree = SliceData::from(
         BuilderData::with_bitstring(
-            vec![0x13, 0x47, 0xD7, 0x9D, 0xFF, 0x80])
+            smallvec![0x13, 0x47, 0xD7, 0x9D, 0xFF, 0x80])
         .unwrap());
 
     let decoded = decode_unknown_function_response(WALLET_ABI.to_owned(), event_tree, false).unwrap();
@@ -338,7 +339,7 @@ fn test_store_pubkey() {
     let test_pubkey = vec![11u8; 32];
     test_map.set_builder(
         0u64.write_to_new_cell().unwrap().into(),
-        &BuilderData::with_raw(vec![0u8; 32], 256).unwrap(),
+        &BuilderData::with_raw(smallvec![0u8; 32], 256).unwrap(),
     ).unwrap();
 
     let data = test_map.write_to_new_cell().unwrap();
@@ -360,7 +361,7 @@ fn test_update_contract_data() {
     let mut test_map = HashmapE::with_bit_len(Contract::DATA_MAP_KEYLEN);
     test_map.set_builder(
         0u64.write_to_new_cell().unwrap().into(),
-        &BuilderData::with_raw(vec![0u8; 32], 256).unwrap(),
+        &BuilderData::with_raw(smallvec![0u8; 32], 256).unwrap(),
     ).unwrap();
 
     let params = r#"{
