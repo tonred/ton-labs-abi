@@ -31,6 +31,17 @@ impl TokenValue {
         Self::pack_cells_into_chain(cells, abi_version)
     }
 
+    pub fn pack_token_values_into_chain(
+        token_values: &[TokenValue],
+        mut cells: Vec<BuilderData>,
+        abi_version: u8
+    ) -> Result<BuilderData> {
+        for value in token_values {
+            cells.append(&mut value.write_to_cells(abi_version)?);
+        }
+        Self::pack_cells_into_chain(cells, abi_version)
+    }
+
     pub fn pack_into_chain(&self, abi_version: u8) -> Result<BuilderData> {
         Self::pack_cells_into_chain(self.write_to_cells(abi_version)?, abi_version)
     }
