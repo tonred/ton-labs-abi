@@ -64,7 +64,7 @@ pub fn read_type(name: &str) -> Result<ParamType> {
             // it's a fixed array.
             let len = usize::from_str_radix(&num, 10)
                 .map_err(|_| AbiError::InvalidName { name: name.to_owned() } )?;
-                
+
             let subtype = read_type(&name[..count - num.len() - 2])?;
             return Ok(ParamType::FixedArray(Box::new(subtype), len));
         }
@@ -72,7 +72,7 @@ pub fn read_type(name: &str) -> Result<ParamType> {
 
     let result = match name {
         "bool" => ParamType::Bool,
-        // a little trick - here we only recognize parameter as a tuple and fill it 
+        // a little trick - here we only recognize parameter as a tuple and fill it
         // with parameters in `Param` type deserialization
         "tuple" => ParamType::Tuple(Vec::new()),
         s if s.starts_with("int") => {
@@ -95,8 +95,8 @@ pub fn read_type(name: &str) -> Result<ParamType> {
                 .map_err(|_| AbiError::InvalidName { name: name.to_owned() } )?;
             ParamType::VarUint(len)
         },
-        s if s.starts_with("map(") && s.ends_with(")") => {
-            let types: Vec<&str> = name[4..name.len() - 1].splitn(2, ",").collect();
+        s if s.starts_with("map(") && s.ends_with(')') => {
+            let types: Vec<&str> = name[4..name.len() - 1].splitn(2, ',').collect();
             if types.len() != 2 {
                 fail!(AbiError::InvalidName { name: name.to_owned() } );
             }
@@ -108,7 +108,7 @@ pub fn read_type(name: &str) -> Result<ParamType> {
             {
                 ParamType::Int(_) | ParamType::Uint(_) | ParamType::Address =>
                     ParamType::Map(Box::new(key_type), Box::new(value_type)),
-                _ => fail!(AbiError::InvalidName { 
+                _ => fail!(AbiError::InvalidName {
                         name: "Only integer and std address values can be map keys".to_owned()
                     }),
             }
@@ -142,11 +142,11 @@ pub fn read_type(name: &str) -> Result<ParamType> {
         "string" => {
             ParamType::String
         }
-        s if s.starts_with("optional(") && s.ends_with(")") => {
+        s if s.starts_with("optional(") && s.ends_with(')') => {
             let inner_type = read_type(&name[9..name.len() - 1])?;
             ParamType::Optional(Box::new(inner_type))
         },
-        s if s.starts_with("ref(") && s.ends_with(")") => {
+        s if s.starts_with("ref(") && s.ends_with(')') => {
             let inner_type = read_type(&name[4..name.len() - 1])?;
             ParamType::Ref(Box::new(inner_type))
         },

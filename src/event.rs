@@ -48,15 +48,13 @@ impl Event {
     }
 
     /// Returns all input params of given function.
-    pub fn input_params(&self) -> Vec<Param> {
-        self.inputs.iter()
-            .map(|p| p.clone())
-            .collect()
+    pub fn input_params(&self) -> &Vec<Param> {
+        &self.inputs
     }
 
     /// Returns true if function has input parameters, false in not
     pub fn has_input(&self) -> bool {
-        self.inputs.len() != 0
+        !self.inputs.is_empty()
     }
 
     /// Retruns ABI function signature
@@ -87,12 +85,12 @@ impl Event {
 
         if id != self.get_id() { Err(AbiError::WrongId { id } )? }
 
-        TokenValue::decode_params(&self.input_params(), data, &self.abi_version, false)
+        TokenValue::decode_params(self.input_params(), data, &self.abi_version, false)
     }
 
     /// Decodes function id from contract answer
     pub fn decode_id(mut data: SliceData) -> Result<u32> {
-        Ok(data.get_next_u32()?)
+        data.get_next_u32()
     }
 
     /// Check if message body is related to this event

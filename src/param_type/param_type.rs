@@ -95,14 +95,14 @@ impl ParamType {
             ParamType::Cell => "cell".to_owned(),
             ParamType::Map(key_type, value_type) =>
                 format!("map({},{})", key_type.type_signature(), value_type.type_signature()),
-            ParamType::Address => format!("address"),
-            ParamType::Bytes => format!("bytes"),
+            ParamType::Address => "address".to_owned(),
+            ParamType::Bytes => "bytes".to_owned(),
             ParamType::FixedBytes(size) => format!("fixedbytes{}", size),
-            ParamType::String => format!("string"),
-            ParamType::Token => format!("gram"),
-            ParamType::Time => format!("time"),
-            ParamType::Expire => format!("expire"),
-            ParamType::PublicKey => format!("pubkey"),
+            ParamType::String => "string".to_owned(),
+            ParamType::Token => "gram".to_owned(),
+            ParamType::Time => "time".to_owned(),
+            ParamType::Expire => "expire".to_owned(),
+            ParamType::PublicKey => "pubkey".to_owned(),
             ParamType::Optional(ref param_type) => format!("optional({})", param_type.type_signature()),
             ParamType::Ref(ref param_type) => format!("ref({})", param_type.type_signature()),
         }
@@ -111,10 +111,11 @@ impl ParamType {
     pub fn set_components(&mut self, components: Vec<Param>) -> Result<()> {
         match self {
             ParamType::Tuple(params) => {
-                if components.len() == 0 {
+                if components.is_empty() {
                     Err(error!(AbiError::EmptyComponents))
                 } else {
-                    Ok(*params = components)
+                    *params = components;
+                    Ok(())
                 }
             }
             ParamType::Array(array_type) => {
@@ -133,7 +134,7 @@ impl ParamType {
                 inner_type.set_components(components)
             }
             _ => {
-                if components.len() != 0 {
+                if !components.is_empty() {
                     Err(error!(AbiError::UnusedComponents))
                 } else {
                     Ok(())

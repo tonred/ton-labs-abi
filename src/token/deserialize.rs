@@ -38,13 +38,13 @@ impl TokenValue {
             }
             ParamType::Tuple(tuple_params) =>
                 Self::read_tuple(tuple_params, cursor, last, abi_version, allow_partial),
-            ParamType::Array(item_type) => Self::read_array(&item_type, cursor, abi_version, allow_partial),
+            ParamType::Array(item_type) => Self::read_array(item_type, cursor, abi_version, allow_partial),
             ParamType::FixedArray(item_type, size) => {
-                Self::read_fixed_array(&item_type, *size, cursor, abi_version, allow_partial)
+                Self::read_fixed_array(item_type, *size, cursor, abi_version, allow_partial)
             }
             ParamType::Cell => Self::read_cell(cursor, last, abi_version)
                 .map(|(cell, cursor)| (TokenValue::Cell(cell), cursor)),
-            ParamType::Map(key_type, value_type) => 
+            ParamType::Map(key_type, value_type) =>
                 Self::read_hashmap(key_type, value_type, cursor, abi_version, allow_partial),
             ParamType::Address => {
                 cursor = find_next_bits(cursor, 1)?;
@@ -62,8 +62,8 @@ impl TokenValue {
             ParamType::Time => Self::read_time(cursor),
             ParamType::Expire => Self::read_expire(cursor),
             ParamType::PublicKey => Self::read_public_key(cursor),
-            ParamType::Optional(inner_type) => Self::read_optional(&inner_type, cursor, last, abi_version, allow_partial),
-            ParamType::Ref(inner_type) => Self::read_ref(&inner_type, cursor, last, abi_version, allow_partial),
+            ParamType::Optional(inner_type) => Self::read_optional(inner_type, cursor, last, abi_version, allow_partial),
+            ParamType::Ref(inner_type) => Self::read_ref(inner_type, cursor, last, abi_version, allow_partial),
         }
     }
 
@@ -186,7 +186,7 @@ impl TokenValue {
             }
             _ => cursor.checked_drain_reference()?
         };
-        Ok((cell.clone(), cursor))
+        Ok((cell, cursor))
     }
 
     fn read_hashmap(
@@ -311,7 +311,7 @@ impl TokenValue {
 
     /// Decodes provided params from SliceData
     pub fn decode_params(
-        params: &Vec<Param>, mut cursor: SliceData, abi_version: &AbiVersion, allow_partial: bool
+        params: &[Param], mut cursor: SliceData, abi_version: &AbiVersion, allow_partial: bool
     ) -> Result<Vec<Token>> {
         let mut tokens = vec![];
 
@@ -327,7 +327,7 @@ impl TokenValue {
         }
 
         Self::check_full_decode(allow_partial, &cursor)?;
-        
+
         Ok(tokens)
     }
 }
@@ -348,8 +348,8 @@ fn find_next_bits(mut cursor: SliceData, bits: usize) -> Result<SliceData> {
     }
     match cursor.remaining_bits() >= bits  {
         true => Ok(cursor),
-        false => fail!(AbiError::DeserializationError { 
-            msg: "Not enought remaining bits in the cell", 
+        false => fail!(AbiError::DeserializationError {
+            msg: "Not enought remaining bits in the cell",
             cursor: original
         })
     }

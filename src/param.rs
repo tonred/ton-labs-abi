@@ -49,16 +49,16 @@ struct SerdeParam {
 impl<'a> Deserialize<'a> for Param {
     fn deserialize<D>(deserializer: D) -> Result<Param, D::Error> where D: Deserializer<'a> {
         // A little trick: tuple parameters is described in JSON as addition field `components`
-        // but struct `Param` doesn't have such a field and tuple components is stored inside of 
+        // but struct `Param` doesn't have such a field and tuple components is stored inside of
         // `ParamType::Tuple` enum. To use automated deserialization instead of manual parameters
         // recognizing we first deserialize parameter into temp struct `SerdeParam` and then
-        // if parameter is a tuple repack tuple components from `SerdeParam::components` 
+        // if parameter is a tuple repack tuple components from `SerdeParam::components`
         // into `ParamType::Tuple`
         let value = serde_json::Value::deserialize(deserializer)?;
         if value.is_string() {
             let type_str = value.as_str().unwrap();
             let param_type: ParamType = serde_json::from_value(value.clone())
-                .map_err(|err| D::Error::custom(err))?;
+                .map_err(D::Error::custom)?;
             match param_type {
                 ParamType::Tuple(_) |
                 ParamType::Array(_) |
@@ -74,7 +74,7 @@ impl<'a> Deserialize<'a> for Param {
                 kind: param_type
             })
         } else {
-            let serde_param: SerdeParam = serde_json::from_value(value).map_err(|err| D::Error::custom(err))?;
+            let serde_param: SerdeParam = serde_json::from_value(value).map_err(D::Error::custom)?;
 
             let mut result = Self {
                 name: serde_param.name,
@@ -85,7 +85,7 @@ impl<'a> Deserialize<'a> for Param {
                 .set_components(serde_param.components)
                 .map_err(D::Error::custom)?;
 
-            Ok(result)  
+            Ok(result)
         }
     }
 }

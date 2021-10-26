@@ -137,7 +137,7 @@ impl TokenValue {
             TokenValue::Int(int) => Self::write_int(int),
             TokenValue::VarUint(size, uint) => Self::write_varuint(uint, *size),
             TokenValue::VarInt(size, int) => Self::write_varint(int, *size),
-            TokenValue::Bool(b) => Self::write_bool(b),
+            TokenValue::Bool(b) => Self::write_bool(*b),
             TokenValue::Tuple(ref tokens) => {
                 let mut vec = vec![];
                 for token in tokens.iter() {
@@ -237,9 +237,9 @@ impl TokenValue {
         Self::write_varint(&big_int, size)
     }
 
-    fn write_bool(value: &bool) -> Result<BuilderData> {
+    fn write_bool(value: bool) -> Result<BuilderData> {
         let mut builder = BuilderData::new();
-        builder.append_bit_bool(value.clone())?;
+        builder.append_bit_bool(value)?;
         Ok(builder)
     }
 
@@ -256,11 +256,11 @@ impl TokenValue {
 
         let value_in_ref = Self::map_value_in_ref(32, param_type.max_bit_size());
 
-        for i in 0..array.len() {
+        for (i, item) in array.iter().enumerate() {
             let index = (i as u32).serialize()?;
 
             let data =
-                Self::pack_cells_into_chain(array[i].write_to_cells(abi_version)?, abi_version)?;
+                Self::pack_cells_into_chain(item.write_to_cells(abi_version)?, abi_version)?;
 
             if value_in_ref {
                 map.set_builder(index.into(), &data)?;
@@ -272,7 +272,7 @@ impl TokenValue {
         Ok(map)
     }
 
-    fn write_array(param_type: &ParamType, value: &Vec<TokenValue>, abi_version: &AbiVersion) -> Result<BuilderData> {
+    fn write_array(param_type: &ParamType, value: &[TokenValue], abi_version: &AbiVersion) -> Result<BuilderData> {
         let map = Self::put_array_into_dictionary(param_type, value, abi_version)?;
 
         let mut builder = BuilderData::new();
@@ -283,10 +283,10 @@ impl TokenValue {
         Ok(builder)
     }
 
-    fn write_fixed_array(param_type: &ParamType, value: &Vec<TokenValue>, abi_version: &AbiVersion) -> Result<BuilderData> {
+    fn write_fixed_array(param_type: &ParamType, value: &[TokenValue], abi_version: &AbiVersion) -> Result<BuilderData> {
         let map = Self::put_array_into_dictionary(param_type, value, abi_version)?;
 
-        Ok(map.write_to_new_cell()?)
+        map.write_to_new_cell()
     }
 
     fn write_bytes(data: &[u8], abi_version: &AbiVersion) -> Result<BuilderData> {

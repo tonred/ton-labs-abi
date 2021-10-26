@@ -112,7 +112,7 @@ impl Token {
         serializer.serialize_str(&data)
     }
 
-    pub fn detokenize_bytes<S>(arr: &Vec<u8>, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    pub fn detokenize_bytes<S>(arr: &[u8], serializer: S) -> std::result::Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
@@ -154,10 +154,10 @@ impl Serialize for TokenValue {
             }
             TokenValue::Int(int) => Token::detokenize_big_int(&int.number, serializer),
             TokenValue::VarUint(size, uint) => {
-                Token::detokenize_big_uint(&uint, (size - 1) * 8, serializer)
+                Token::detokenize_big_uint(uint, (size - 1) * 8, serializer)
             }
-            TokenValue::VarInt(_, int) => Token::detokenize_big_int(&int, serializer),
-            TokenValue::Bool(b) => serializer.serialize_bool(b.clone()),
+            TokenValue::VarInt(_, int) => Token::detokenize_big_int(int, serializer),
+            TokenValue::Bool(b) => serializer.serialize_bool(*b),
             TokenValue::Tuple(tokens) => {
                 FunctionParams {params: tokens}.serialize(serializer)
             },
@@ -177,7 +177,7 @@ impl Serialize for TokenValue {
             TokenValue::Expire(expire) => {
                 Token::detokenize_big_uint(&BigUint::from(*expire), 32, serializer)
             }
-            TokenValue::PublicKey(key) => Token::detokenize_public_key(&key, serializer),
+            TokenValue::PublicKey(key) => Token::detokenize_public_key(key, serializer),
             TokenValue::Optional(_, value) => value.serialize(serializer),
             TokenValue::Ref(value) => value.serialize(serializer),
         }

@@ -38,13 +38,13 @@ impl Tokenizer {
             ParamType::VarInt(size) => Self::tokenize_varint(*size, value),
             ParamType::Bool => Self::tokenize_bool(value),
             ParamType::Tuple(tuple_params) => Self::tokenize_tuple(tuple_params, value),
-            ParamType::Array(param_type) => Self::tokenize_array(&param_type, value),
-            ParamType::FixedArray(param_type, size) => Self::tokenize_fixed_array(&param_type, *size, value),
+            ParamType::Array(param_type) => Self::tokenize_array(param_type, value),
+            ParamType::FixedArray(param_type, size) => Self::tokenize_fixed_array(param_type, *size, value),
             ParamType::Cell => Self::tokenize_cell(value),
             ParamType::Map(key_type, value_type) => Self::tokenize_hashmap(key_type, value_type, value),
             ParamType::Address => {
                 let address = MsgAddress::from_str(
-                    &value.as_str()
+                    value.as_str()
                         .ok_or_else(|| AbiError::WrongDataFormat { val: value.clone() } )?)
                     .map_err(|_| AbiError::WrongDataFormat { val: value.clone() } )?;
                 Ok(TokenValue::Address(address))
@@ -98,7 +98,7 @@ impl Tokenizer {
             }
             if !map.is_empty() {
                 let unknown = map.iter().map(|(key, _)| key.as_ref()).collect::<Vec<&str>>().join(", ");
-                return Err(AbiError::InvalidInputData { 
+                return Err(AbiError::InvalidInputData {
                     msg: format!("Contract doesn't have following parameters: {}", unknown)
                 }.into());
             }
@@ -115,7 +115,7 @@ impl Tokenizer {
             for value in array {
                 tokens.push(Self::tokenize_parameter(item_type, value)?);
             }
-            
+
             Ok(tokens)
         } else {
             fail!(AbiError::WrongDataFormat { val: value.clone() } )
@@ -200,9 +200,9 @@ impl Tokenizer {
     /// Checks if given number can be fit into given bits count
     fn check_int_size(number: &BigInt, size: usize) -> bool {
         // `BigInt::bits` returns fewest bits necessary to express the number, not including
-        // the sign and it works well for all values except `-2^n`. Such values can be encoded 
-        // using `n` bits, but `bits` function returns `n` (and plus one bit for sign) so we 
-        // have to explicitly check such situation by comparing bits sizes of given number 
+        // the sign and it works well for all values except `-2^n`. Such values can be encoded
+        // using `n` bits, but `bits` function returns `n` (and plus one bit for sign) so we
+        // have to explicitly check such situation by comparing bits sizes of given number
         // and increased number
         if number.sign() == Sign::Minus && number.bits() != (number + BigInt::from(1)).bits() {
             number.bits() <= size as u64
@@ -274,7 +274,7 @@ impl Tokenizer {
             .as_str()
             .ok_or_else(|| AbiError::WrongDataFormat { val: value.clone() } )?;
 
-        if string.len() == 0 {
+        if string.is_empty() {
             return Ok(TokenValue::Cell(Cell::default()));
         }
 
@@ -324,7 +324,7 @@ impl Tokenizer {
     }
 
     /// Tries to parse a value as tuple.
-    fn tokenize_tuple(params: &Vec<Param>, value: &Value) -> Result<TokenValue> {
+    fn tokenize_tuple(params: &[Param], value: &Value) -> Result<TokenValue> {
         let tokens = Self::tokenize_all_params(params, value)?;
 
         Ok(TokenValue::Tuple(tokens))
@@ -357,7 +357,7 @@ impl Tokenizer {
             .as_str()
             .ok_or_else(|| AbiError::WrongDataFormat { val: value.clone() } )?;
 
-        if string.len() == 0 {
+        if string.is_empty() {
             Ok(TokenValue::PublicKey(None))
         } else {
             let data = hex::decode(string)

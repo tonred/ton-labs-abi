@@ -120,7 +120,7 @@ where
 
             u32::from_str_radix(&string[2..], 16)
                 .map_err(|err| D::Error::custom(format!("Error parsing number: {}", err)))
-                .map(|value| Some(value))
+                .map(Some)
         }
     }
 }
@@ -228,7 +228,7 @@ impl Contract {
         }
 
         if version.major == 1 {
-            if serde_contract.header.len() != 0 {
+            if !serde_contract.header.is_empty() {
                 return Err(AbiError::InvalidData {
                     msg: "Header parameters are not supported in ABI v1".into(),
                 }
@@ -247,7 +247,7 @@ impl Contract {
         }
 
         let mut result = Self {
-            abi_version: version.clone(),
+            abi_version: version,
             header: serde_contract.header,
             functions: HashMap::new(),
             events: HashMap::new(),
@@ -260,12 +260,12 @@ impl Contract {
             Self::check_params_support(&version, function.outputs.iter())?;
             result.functions.insert(
                 function.name.clone(),
-                Function::from_serde(version.clone(), function, result.header.clone()));
+                Function::from_serde(version, function, result.header.clone()));
         }
 
         for event in serde_contract.events {
             Self::check_params_support(&version, event.inputs.iter())?;
-            result.events.insert(event.name.clone(), Event::from_serde(version.clone(), event));
+            result.events.insert(event.name.clone(), Event::from_serde(version, event));
         }
 
         Self::check_params_support(&version, serde_contract.data.iter().map(|val| &val.value))?;
@@ -277,7 +277,7 @@ impl Contract {
     }
 
     fn check_params_support<'a, T>(abi_version: &AbiVersion, params: T) -> Result<()>
-        where 
+        where
         T: std::iter::Iterator<Item = &'a Param>
     {
         for param in params {
@@ -302,7 +302,7 @@ impl Contract {
 
     /// Returns `Function` struct with provided function id.
     pub fn function_by_id(&self, id: u32, input: bool) -> Result<&Function> {
-        for (_, func) in &self.functions {
+        for func in self.functions.values() {
             let func_id = if input {
                 func.get_input_id()
             } else {
@@ -318,7 +318,7 @@ impl Contract {
 
     /// Returns `Event` struct with provided function id.
     pub fn event_by_id(&self, id: u32) -> Result<&Event> {
-        for (_, event) in &self.events {
+        for event in self.events.values() {
             if event.get_id() == id {
                 return Ok(event);
             }
@@ -384,7 +384,7 @@ impl Contract {
     /// Decodes contract answer and returns name of the function called
     pub fn decode_input(&self, data: SliceData, internal: bool) -> Result<DecodedMessage> {
         let original_data = data.clone();
-        
+
         let func_id = Function::decode_input_id(&self.abi_version, data, &self.header, internal)?;
 
         let func = self.function_by_id(func_id, true)?;
@@ -414,7 +414,7 @@ impl Contract {
 
                 map.set_builder(
                     key.serialize()?.into(),
-                    &builder, 
+                    &builder,
                 )?;
         }
 
@@ -424,15 +424,15 @@ impl Contract {
     /// Decode initial values of public contract variables
     pub fn decode_data(&self, data: SliceData) -> Result<Vec<Token>> {
         let map = HashmapE::with_hashmap(
-            Self::DATA_MAP_KEYLEN, 
+            Self::DATA_MAP_KEYLEN,
             data.reference_opt(0),
         );
 
         let mut tokens = vec![];
-        for (_, item) in &self.data {
+        for item in self.data.values() {
             if let Some(value) = map.get(item.key.serialize()?.into())? {
                 tokens.append(
-                    &mut TokenValue::decode_params(&vec![item.value.clone()], value, &self.abi_version, false)?
+                    &mut TokenValue::decode_params(&[item.value.clone()], value, &self.abi_version, false)?
                 );
             }
         }
@@ -457,12 +457,12 @@ impl Contract {
         let value = BuilderData::with_raw(pubkey_vec, pubkey_len)?;
 
         let mut map = HashmapE::with_hashmap(
-            Self::DATA_MAP_KEYLEN, 
+            Self::DATA_MAP_KEYLEN,
             data.reference_opt(0)
         );
         map.set_builder(
             0u64.serialize()?.into(),
-            &value, 
+            &value,
         )?;
         Ok(map.serialize()?.into())
     }

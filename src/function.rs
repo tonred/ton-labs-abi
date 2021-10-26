@@ -83,12 +83,12 @@ impl Function {
 
     /// Returns true if function has input parameters, false in not
     pub fn has_input(&self) -> bool {
-        self.inputs.len() != 0
+        !self.inputs.is_empty()
     }
 
     /// Returns true if function has output parameters, false in not
     pub fn has_output(&self) -> bool {
-        self.outputs.len() != 0
+        !self.outputs.is_empty()
     }
 
     /// Retruns ABI function signature
@@ -174,7 +174,7 @@ impl Function {
     pub fn decode_input_id(
         abi_version: &AbiVersion,
         cursor: SliceData,
-        header: &Vec<Param>,
+        header: &[Param],
         internal: bool,
     ) -> Result<u32> {
         let (_, id, _) = Self::decode_header(abi_version, cursor, header, internal)?;
@@ -216,8 +216,7 @@ impl Function {
 
     /// Encodes provided function return values into `BuilderData`
     pub fn encode_internal_output(&self, answer_id: u32, input: &[Token]) -> Result<BuilderData> {
-        let mut vec = vec![];
-        vec.push(answer_id.write_to_new_cell()?.into());
+        let vec = vec![answer_id.write_to_new_cell()?.into()];
         let builder = TokenValue::pack_values_into_chain(input, vec, &self.abi_version)?;
         Ok(builder)
     }
@@ -253,7 +252,7 @@ impl Function {
     pub fn decode_header(
         abi_version: &AbiVersion,
         mut cursor: SliceData,
-        header: &Vec<Param>,
+        header: &[Param],
         internal: bool,
     ) -> Result<(Vec<Token>, u32, SliceData)> {
         let mut tokens = vec![];
@@ -381,7 +380,7 @@ impl Function {
             if let Some(signature) = signature {
                 let len = signature.len() * 8;
                 sign_builder.append_bit_one()?;
-                sign_builder.append_raw(&signature, len)?;
+                sign_builder.append_raw(signature, len)?;
             } else {
                 sign_builder.append_bit_zero()?;
             }

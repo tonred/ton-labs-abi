@@ -105,19 +105,19 @@ pub enum TokenValue {
     ///
     Address(MsgAddress),
     /// Raw byte array
-    /// 
+    ///
     /// Encoded as separate cells chain
     Bytes(Vec<u8>),
     /// Fixed sized raw byte array
-    /// 
+    ///
     /// Encoded as separate cells chain
     FixedBytes(Vec<u8>),
     /// UTF8 string
-    /// 
+    ///
     /// Encoded similar to `Bytes`
     String(String),
     /// Nanograms
-    /// 
+    ///
     Token(Grams),
     /// Timestamp
     Time(u64),
@@ -202,7 +202,7 @@ impl TokenValue {
             TokenValue::Bool(_) => *param_type == ParamType::Bool,
             TokenValue::Tuple(ref arr) => {
                 if let ParamType::Tuple(ref params) = *param_type {
-                    Token::types_check(arr, &params)
+                    Token::types_check(arr, params)
                 } else {
                     false
                 }
@@ -277,7 +277,7 @@ impl TokenValue {
                 ParamType::FixedArray(Box::new(param_type.clone()), tokens.len())
             }
             TokenValue::Cell(_) => ParamType::Cell,
-            TokenValue::Map(key_type, value_type, _) => 
+            TokenValue::Map(key_type, value_type, _) =>
                 ParamType::Map(Box::new(key_type.clone()), Box::new(value_type.clone())),
             TokenValue::Address(_) => ParamType::Address,
             TokenValue::Bytes(_) => ParamType::Bytes,
@@ -287,9 +287,9 @@ impl TokenValue {
             TokenValue::Time(_) => ParamType::Time,
             TokenValue::Expire(_) => ParamType::Expire,
             TokenValue::PublicKey(_) => ParamType::PublicKey,
-            TokenValue::Optional(ref param_type, _) => 
+            TokenValue::Optional(ref param_type, _) =>
                 ParamType::Optional(Box::new(param_type.clone())),
-            TokenValue::Ref(value) => 
+            TokenValue::Ref(value) =>
                 ParamType::Ref(Box::new(value.get_param_type())),
         }
     }
