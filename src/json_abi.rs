@@ -59,7 +59,7 @@ pub fn prepare_function_call_for_sign(
     function: String,
     header: Option<String>,
     parameters: String,
-) -> Result<(BuilderData, Vec<u8>)> {
+) -> Result<(BuilderData, ton_types::UInt256)> {
     let contract = Contract::load(abi.as_bytes())?;
 
     let function = contract.function(&function)?;
@@ -160,6 +160,13 @@ pub fn update_contract_data(abi: &str, parameters: &str, data: SliceData) -> Res
     let tokens = Tokenizer::tokenize_all_params(&params[..], &data_json)?;
 
     contract.update_data(data, &tokens)
+}
+
+/// Decode initial values of public contract variables
+pub fn decode_contract_data(abi: &str, data: SliceData) -> Result<String> {
+    let contract = Contract::load(abi.as_bytes())?;
+
+    Detokenizer::detokenize(&contract.decode_data(data)?)
 }
 
 /// Decode account storage fields

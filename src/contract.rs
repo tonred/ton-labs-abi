@@ -23,12 +23,13 @@ use ton_block::Serializable;
 use ton_types::{error, fail, BuilderData, HashmapE, Result, SliceData};
 
 
-const MIN_SUPPORTED_VERSION: AbiVersion = ABI_VBERSION_1_0;
-const MAX_SUPPORTED_VERSION: AbiVersion = ABI_VBERSION_2_1;
+pub const MIN_SUPPORTED_VERSION: AbiVersion = ABI_VERSION_1_0;
+pub const MAX_SUPPORTED_VERSION: AbiVersion = ABI_VERSION_2_2;
 
-pub const ABI_VBERSION_1_0: AbiVersion = AbiVersion::from_parts(1, 0);
-pub const ABI_VBERSION_2_0: AbiVersion = AbiVersion::from_parts(2, 0);
-pub const ABI_VBERSION_2_1: AbiVersion = AbiVersion::from_parts(2, 1);
+pub const ABI_VERSION_1_0: AbiVersion = AbiVersion::from_parts(1, 0);
+pub const ABI_VERSION_2_0: AbiVersion = AbiVersion::from_parts(2, 0);
+pub const ABI_VERSION_2_1: AbiVersion = AbiVersion::from_parts(2, 1);
+pub const ABI_VERSION_2_2: AbiVersion = AbiVersion::from_parts(2, 2);
 
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
 pub struct AbiVersion {
@@ -241,7 +242,7 @@ impl Contract {
             }
         }
 
-        if !serde_contract.fields.is_empty() && version < ABI_VBERSION_2_1 {
+        if !serde_contract.fields.is_empty() && version < ABI_VERSION_2_1 {
             fail!(AbiError::InvalidData {msg: "Storage fields are supported since ABI v2.1".into()});
         }
 
@@ -384,7 +385,7 @@ impl Contract {
     pub fn decode_input(&self, data: SliceData, internal: bool) -> Result<DecodedMessage> {
         let original_data = data.clone();
         
-        let func_id = Function::decode_input_id(self.abi_version.major, data, &self.header, internal)?;
+        let func_id = Function::decode_input_id(&self.abi_version, data, &self.header, internal)?;
 
         let func = self.function_by_id(func_id, true)?;
 
@@ -403,7 +404,7 @@ impl Contract {
         let mut map = HashmapE::with_hashmap(Self::DATA_MAP_KEYLEN, data.reference_opt(0));
 
         for token in tokens {
-            let builder = token.value.pack_into_chain(self.abi_version.major)?;
+            let builder = token.value.pack_into_chain(&self.abi_version)?;
             let key = self.data
                 .get(&token.name)
                 .ok_or_else(|| AbiError::InvalidData {
@@ -411,16 +412,41 @@ impl Contract {
                 })?
                 .key;
 
-            map.set_builder(key.write_to_new_cell().unwrap().into(), &builder)?;
+                map.set_builder(
+                    key.serialize()?.into(),
+                    &builder, 
+                )?;
         }
 
-        Ok(map.write_to_new_cell()?.into())
+        Ok(map.serialize()?.into())
+    }
+
+    /// Decode initial values of public contract variables
+    pub fn decode_data(&self, data: SliceData) -> Result<Vec<Token>> {
+        let map = HashmapE::with_hashmap(
+            Self::DATA_MAP_KEYLEN, 
+            data.reference_opt(0),
+        );
+
+        let mut tokens = vec![];
+        for (_, item) in &self.data {
+            if let Some(value) = map.get(item.key.serialize()?.into())? {
+                tokens.append(
+                    &mut TokenValue::decode_params(&vec![item.value.clone()], value, &self.abi_version, false)?
+                );
+            }
+        }
+
+        Ok(tokens)
     }
 
     // Gets public key from contract data
     pub fn get_pubkey(data: &SliceData) -> Result<Option<Vec<u8>>> {
-        let map = HashmapE::with_hashmap(Self::DATA_MAP_KEYLEN, data.reference_opt(0));
-        map.get(0u64.write_to_new_cell()?.into())
+        let map = HashmapE::with_hashmap(
+            Self::DATA_MAP_KEYLEN,
+            data.reference_opt(0),
+        );
+        map.get(0u64.serialize()?.into())
             .map(|opt| opt.map(|slice| slice.get_bytestring(0)))
     }
 
@@ -428,11 +454,17 @@ impl Contract {
     pub fn insert_pubkey(data: SliceData, pubkey: &[u8]) -> Result<SliceData> {
         let pubkey_vec = SmallVec::from_slice(pubkey);
         let pubkey_len = pubkey_vec.len() * 8;
-        let value = BuilderData::with_raw(pubkey_vec, pubkey_len).unwrap_or_default();
+        let value = BuilderData::with_raw(pubkey_vec, pubkey_len)?;
 
-        let mut map = HashmapE::with_hashmap(Self::DATA_MAP_KEYLEN, data.reference_opt(0));
-        map.set_builder(0u64.write_to_new_cell().unwrap().into(), &value)?;
-        Ok(map.write_to_new_cell()?.into())
+        let mut map = HashmapE::with_hashmap(
+            Self::DATA_MAP_KEYLEN, 
+            data.reference_opt(0)
+        );
+        map.set_builder(
+            0u64.serialize()?.into(),
+            &value, 
+        )?;
+        Ok(map.serialize()?.into())
     }
 
     /// Add sign to messsage body returned by `prepare_input_for_sign` function
@@ -442,12 +474,12 @@ impl Contract {
         public_key: Option<&[u8]>,
         function_call: SliceData,
     ) -> Result<BuilderData> {
-        Function::add_sign_to_encoded_input(self.abi_version.major, signature, public_key, function_call)
+        Function::add_sign_to_encoded_input(&self.abi_version, signature, public_key, function_call)
     }
 
     /// Decode account storage fields
     pub fn decode_storage_fields(&self, data: SliceData) -> Result<Vec<Token>> {
-        TokenValue::decode_params(&self.fields, data, self.abi_version.major)
+        TokenValue::decode_params(&self.fields, data, &self.abi_version, false)
     }
 }
 

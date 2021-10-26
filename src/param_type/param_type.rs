@@ -15,8 +15,8 @@
 
 use std::fmt;
 
-use crate::{AbiError, Param, contract::ABI_VBERSION_2_0};
-use crate::contract::{ABI_VBERSION_1_0, ABI_VBERSION_2_1, AbiVersion};
+use crate::{AbiError, Param, contract::ABI_VERSION_2_0};
+use crate::contract::{ABI_VERSION_1_0, ABI_VERSION_2_1, AbiVersion};
 
 use ton_types::{BuilderData, Result, error};
 
@@ -61,6 +61,8 @@ pub enum ParamType {
     PublicKey,
     /// Optional parameter
     Optional(Box<ParamType>),
+    /// Parameter stored in reference
+    Ref(Box<ParamType>),
 }
 
 impl fmt::Display for ParamType {
@@ -88,10 +90,10 @@ impl ParamType {
                 signature + ")"
             },
             ParamType::Array(ref param_type) => format!("{}[]", param_type.type_signature()),
-            ParamType::FixedArray(ref param_type, size) => 
+            ParamType::FixedArray(ref param_type, size) =>
                 format!("{}[{}]", param_type.type_signature(), size),
             ParamType::Cell => "cell".to_owned(),
-            ParamType::Map(key_type, value_type) => 
+            ParamType::Map(key_type, value_type) =>
                 format!("map({},{})", key_type.type_signature(), value_type.type_signature()),
             ParamType::Address => format!("address"),
             ParamType::Bytes => format!("bytes"),
@@ -102,6 +104,7 @@ impl ParamType {
             ParamType::Expire => format!("expire"),
             ParamType::PublicKey => format!("pubkey"),
             ParamType::Optional(ref param_type) => format!("optional({})", param_type.type_signature()),
+            ParamType::Ref(ref param_type) => format!("ref({})", param_type.type_signature()),
         }
     }
 
@@ -113,7 +116,7 @@ impl ParamType {
                 } else {
                     Ok(*params = components)
                 }
-            } 
+            }
             ParamType::Array(array_type) => {
                 array_type.set_components(components)
             }
@@ -126,7 +129,10 @@ impl ParamType {
             ParamType::Optional(inner_type) => {
                 inner_type.set_components(components)
             }
-            _ => { 
+            ParamType::Ref(inner_type) => {
+                inner_type.set_components(components)
+            }
+            _ => {
                 if components.len() != 0 {
                     Err(error!(AbiError::UnusedComponents))
                 } else {
@@ -139,9 +145,10 @@ impl ParamType {
     /// Check if parameter type is supoorted in particular ABI version
     pub fn is_supported(&self, abi_version: &AbiVersion) -> bool {
         match self {
-            ParamType::Time | ParamType::Expire | ParamType::PublicKey => abi_version >= &ABI_VBERSION_2_0,
-            ParamType::String | ParamType::Optional(_)| ParamType::VarInt(_) | ParamType::VarUint(_) => abi_version >= &ABI_VBERSION_2_1,
-            _ => abi_version >= &ABI_VBERSION_1_0,
+            ParamType::Time | ParamType::Expire | ParamType::PublicKey => abi_version >= &ABI_VERSION_2_0,
+            ParamType::String | ParamType::Optional(_)| ParamType::VarInt(_) | ParamType::VarUint(_) => abi_version >= &ABI_VERSION_2_1,
+            ParamType::Ref(_) => false,
+            _ => abi_version >= &ABI_VERSION_1_0,
         }
     }
 
@@ -149,8 +156,8 @@ impl ParamType {
         match self {
             ParamType::Int(size) | ParamType::Uint(size) => Ok(*size),
             ParamType::Address => Ok(crate::token::STD_ADDRESS_BIT_LENGTH),
-            _ => Err(error!(AbiError::InvalidData { 
-                msg: "Only integer and std address values can be map keys".to_owned() 
+            _ => Err(error!(AbiError::InvalidData {
+                msg: "Only integer and std address values can be map keys".to_owned()
             }))
         }
     }
@@ -160,7 +167,7 @@ impl ParamType {
     }
 
     pub(crate) fn is_large_optional(&self) -> bool {
-        self.max_bit_size() >= BuilderData::bits_capacity() || 
+        self.max_bit_size() >= BuilderData::bits_capacity() ||
         self.max_refs_count() >= BuilderData::references_capacity()
     }
 
@@ -172,7 +179,8 @@ impl ParamType {
             | ParamType::Expire |ParamType::PublicKey => 0,
             // reference serialized types
             ParamType::Array(_) | ParamType::FixedArray(_, _) | ParamType::Cell | ParamType::String
-            | ParamType::Map(_, _) | ParamType::Bytes | ParamType::FixedBytes(_) => 1,
+            | ParamType::Map(_, _) | ParamType::Bytes | ParamType::FixedBytes(_)
+            | ParamType::Ref(_) => 1,
             // tuple refs is sum of inner types refs
             ParamType::Tuple(params) => {
                 params
@@ -186,7 +194,7 @@ impl ParamType {
                 } else {
                     0
                 }
-            }
+            },
         }
     }
 
@@ -204,10 +212,11 @@ impl ParamType {
             ParamType::Address => 591,
             ParamType::Bytes | ParamType::FixedBytes(_) => 0,
             ParamType::String => 0,
-            ParamType::Token => 128,
+            ParamType::Token => 124,
             ParamType::Time => 64,
             ParamType::Expire => 32,
             ParamType::PublicKey => 257,
+            ParamType::Ref(_) => 0,
             ParamType::Tuple(params) => {
                 params
                     .iter()

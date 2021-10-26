@@ -481,8 +481,8 @@ mod tokenize_tests {
         let mut builder = BuilderData::with_bitstring(smallvec![1, 2, 3, 4, 5, 6, 7, 8, 0x80]).unwrap();
         builder.append_reference(BuilderData::with_bitstring(smallvec![11, 12, 13, 14, 15, 16, 17, 18, 0x80]).unwrap());
         builder.append_reference(BuilderData::with_bitstring(smallvec![21, 22, 23, 24, 25, 26, 27, 28, 0x80]).unwrap());
-        expected_tokens.push(Token::new("a", TokenValue::Cell(builder.into())));
-        expected_tokens.push(Token::new("b", TokenValue::Cell(BuilderData::new().into())));
+        expected_tokens.push(Token::new("a", TokenValue::Cell(builder.into_cell().unwrap())));
+        expected_tokens.push(Token::new("b", TokenValue::Cell(Default::default())));
 
         assert_eq!(
             Tokenizer::tokenize_all_params(&params, &serde_json::from_str(input).unwrap()).unwrap(),
@@ -900,6 +900,54 @@ mod tokenize_tests {
     }
 
     #[test]
+    fn test_tokenize_ref() {
+        let input = r#"{
+            "a": 123,
+            "b": {
+                "c": true,
+                "d": "some string"
+            }
+        }"#;
+
+        let params = vec![
+            Param::new("a", ParamType::Ref(Box::new(ParamType::VarUint(32)))),
+            Param::new("b", ParamType::Ref(
+                Box::new(ParamType::Tuple(vec![
+                    Param::new("c", ParamType::Bool),
+                    Param::new("d", ParamType::String),
+                ]))
+            )),
+        ];
+
+        let expected_tokens = vec![
+            Token {
+                name: "a".to_owned(),
+                value: TokenValue::Ref(Box::new(TokenValue::VarUint(32, 123u32.into()))),
+            },
+            Token {
+                name: "b".to_owned(),
+                value: TokenValue::Ref(
+                    Box::new(TokenValue::Tuple(vec![
+                        Token {
+                            name: "c".to_owned(),
+                            value: TokenValue::Bool(true),
+                        },
+                        Token {
+                            name: "d".to_owned(),
+                            value: TokenValue::String("some string".to_owned()),
+                        },
+                    ]))
+                )
+            },
+        ];
+
+        assert_eq!(
+            Tokenizer::tokenize_all_params(&params, &serde_json::from_str(input).unwrap()).unwrap(),
+            expected_tokens
+        );
+    }
+
+    #[test]
     fn test_unknown_param() {
         let input = r#"{
             "a": 123,
@@ -922,8 +970,8 @@ mod tokenize_tests {
 
 mod types_check_tests {
     use crate::{Int, Param, ParamType, Token, TokenValue, Uint};
-    use ton_types::BuilderData;
     use ton_block::MsgAddress;
+    use ton_types::Cell;
     use std::collections::BTreeMap;
 
     #[test]
@@ -993,7 +1041,7 @@ mod types_check_tests {
             },
             Token {
                 name: "k".to_owned(),
-                value: TokenValue::Cell(BuilderData::new().into()),
+                value: TokenValue::Cell(Cell::default()),
             },
             Token {
                 name: "l".to_owned(),
@@ -1034,6 +1082,18 @@ mod types_check_tests {
             Token {
                 name: "t".to_owned(),
                 value: TokenValue::String("123".to_owned())
+            },
+            Token {
+                name: "u".to_owned(),
+                value: TokenValue::Optional(ParamType::Int(256), None),
+            },
+            Token {
+                name: "v".to_owned(),
+                value: TokenValue::Optional(ParamType::Bool, Some(Box::new(TokenValue::Bool(true)))),
+            },
+            Token {
+                name: "w".to_owned(),
+                value: TokenValue::Ref(Box::new(TokenValue::String("123".to_owned()))),
             },
         ];
 
@@ -1124,6 +1184,18 @@ mod types_check_tests {
             Param {
                 name: "t".to_owned(),
                 kind: ParamType::String,
+            },
+            Param {
+                name: "u".to_owned(),
+                kind: ParamType::Optional(Box::new(ParamType::Int(256))),
+            },
+            Param {
+                name: "v".to_owned(),
+                kind: ParamType::Optional(Box::new(ParamType::Bool)),
+            },
+            Param {
+                name: "w".to_owned(),
+                kind: ParamType::Ref(Box::new(ParamType::String)),
             },
         ];
 

@@ -87,7 +87,7 @@ impl Event {
 
         if id != self.get_id() { Err(AbiError::WrongId { id } )? }
 
-        TokenValue::decode_params(&self.input_params(), data, self.abi_version.major)
+        TokenValue::decode_params(&self.input_params(), data, &self.abi_version, false)
     }
 
     /// Decodes function id from contract answer
