@@ -13,7 +13,7 @@
 
 //! Contract function call builder.
 
-use crate::{contract::ABI_VERSION_1_0, error::AbiError, param::Param, token::{SerializedValue, Token, TokenValue}};
+use crate::{contract::ABI_VERSION_1_0, error::AbiError, param::Param, param_type::ParamType, token::{SerializedValue, Token, TokenValue}};
 
 use crate::contract::{AbiVersion, SerdeFunction};
 use ed25519::signature::Signer;
@@ -249,6 +249,38 @@ impl Function {
     }
 
     /// Encodes function header with provided header parameters
+    fn encode_default_header(
+        &self,
+        time: u64,
+        internal: bool
+    ) -> Result<Vec<SerializedValue>> {
+        let mut vec = vec![];
+        if !internal {
+            for param in &self.header {
+                let header_value = match &param.kind {
+                    ParamType::Time => TokenValue::Time(time),
+                    ParamType::Expire => TokenValue::Expire(u32::MAX),
+                    ParamType::PublicKey => TokenValue::PublicKey(None),
+                    any_type => return Err(
+                        AbiError::InvalidInputData {
+                            msg: format!(
+                                "Type {} doesn't have default value and must be explicitly defined",
+                                any_type)}.into()
+                    )
+                };
+
+                vec.append(&mut header_value.write_to_cells(&self.abi_version)?);
+            }
+        }
+        if self.abi_version.major == 1 {
+            vec.insert(0, self.get_input_id().write_to_new_cell()?.into());
+        } else {
+            vec.push(self.get_input_id().write_to_new_cell()?.into());
+        }
+        Ok(vec)
+    }
+
+    /// Encodes function header with provided header parameters
     pub fn decode_header(
         abi_version: &AbiVersion,
         mut cursor: SliceData,
@@ -346,6 +378,66 @@ impl Function {
         let hash = builder.clone().into_cell()?.repr_hash();
 
         Ok((builder, hash))
+    }
+
+    /// Encodes provided function parameters into `BuilderData` containing ABI contract call.
+    pub fn encode_run_local_input(&self, time: u64, input: &[Token]) -> Result<BuilderData> {
+        let params = self.input_params();
+
+        if !Token::types_check(input, params) {
+            fail!(AbiError::WrongParameterType);
+        }
+
+        // prepare standard message
+        let mut cells = self.encode_default_header(time, false)?;
+
+        let mut remove_ref = false;
+        let mut remove_bits = 0;
+
+        let mut sign_builder = BuilderData::new();
+        if self.abi_version.major == 1 {
+            // reserve reference for sign
+            sign_builder.append_reference(BuilderData::new());
+            remove_ref = true;
+        } else {
+            sign_builder.append_bit_zero()?;
+            remove_bits = 1;
+        }
+        cells.insert(0, SerializedValue {
+            data: sign_builder,
+            max_bits: 1 + SIGNATURE_LENGTH * 8,
+            max_refs: 0
+        });
+
+        // encoding itself
+        let mut builder = TokenValue::pack_values_into_chain(input, cells, &self.abi_version)?;
+
+        // delete reserved sign before hash
+        let mut slice = SliceData::from(builder.into_cell()?);
+        if remove_ref {
+            slice.checked_drain_reference()?;
+        }
+        if remove_bits != 0 {
+            slice.get_next_bits(remove_bits)?;
+        }
+        builder = BuilderData::from_slice(&slice);
+
+        if self.abi_version == ABI_VERSION_1_0 {
+            // sign in reference
+            if builder.references_free() == 0 {
+                fail!(AbiError::InvalidInputData {
+                    msg: "No free reference for signature".to_owned()
+                });
+            }
+            builder.prepend_reference(BuilderData::new());
+        } else {
+            // sign in cell body
+            let mut sign_builder = BuilderData::new();
+            sign_builder.append_bit_zero()?;
+            builder.prepend_builder(&sign_builder)?;
+        }
+
+        Ok(builder)
     }
 
     /// Add sign to messsage body returned by `prepare_input_for_sign` function
