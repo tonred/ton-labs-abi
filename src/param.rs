@@ -12,7 +12,7 @@
 */
 
 //! Function param.
-use crate::param_type::ParamType;
+use crate::param_type::{ParamType, read_type};
 use serde::de::{Deserializer, Error};
 use serde::Deserialize;
 
@@ -54,38 +54,39 @@ impl<'a> Deserialize<'a> for Param {
         // recognizing we first deserialize parameter into temp struct `SerdeParam` and then
         // if parameter is a tuple repack tuple components from `SerdeParam::components`
         // into `ParamType::Tuple`
-        let value = serde_json::Value::deserialize(deserializer)?;
-        if value.is_string() {
-            let type_str = value.as_str().unwrap();
-            let param_type: ParamType = serde_json::from_value(value.clone())
-                .map_err(D::Error::custom)?;
-            match param_type {
-                ParamType::Tuple(_) |
-                ParamType::Array(_) |
-                ParamType::FixedArray(_, _) |
-                ParamType::Map(_, _) =>
-                    return Err(D::Error::custom(
-                        format!("Invalid parameter specification: {}. Only simple types can be represented as strings",
-                            type_str))),
-                _ => {}
+        match serde_json::Value::deserialize(deserializer)? {
+            serde_json::Value::String(type_str) => {
+                let param_type: ParamType = read_type(&type_str)
+                    .map_err(D::Error::custom)?;
+                match param_type {
+                    ParamType::Tuple(_) |
+                    ParamType::Array(_) |
+                    ParamType::FixedArray(_, _) |
+                    ParamType::Map(_, _) =>
+                        return Err(D::Error::custom(
+                            format!("Invalid parameter specification: {}. Only simple types can be represented as strings",
+                                    type_str))),
+                    _ => {}
+                }
+                Ok(Self {
+                    name: type_str,
+                    kind: param_type
+                })
             }
-            Ok(Self {
-                name: type_str.to_owned(),
-                kind: param_type
-            })
-        } else {
-            let serde_param: SerdeParam = serde_json::from_value(value).map_err(D::Error::custom)?;
+            value => {
+                let serde_param: SerdeParam = serde_json::from_value(value).map_err(D::Error::custom)?;
 
-            let mut result = Self {
-                name: serde_param.name,
-                kind: serde_param.kind,
-            };
+                let mut result = Self {
+                    name: serde_param.name,
+                    kind: serde_param.kind,
+                };
 
-            result.kind
-                .set_components(serde_param.components)
-                .map_err(D::Error::custom)?;
+                result.kind
+                    .set_components(serde_param.components)
+                    .map_err(D::Error::custom)?;
 
-            Ok(result)
+                Ok(result)
+            }
         }
     }
 }

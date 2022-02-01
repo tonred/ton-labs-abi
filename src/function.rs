@@ -380,6 +380,20 @@ impl Function {
         Ok((builder, hash))
     }
 
+    pub fn encode_internal_input(&self, input: &[Token]) -> Result<BuilderData> {
+        let params = self.input_params();
+
+        if !Token::types_check(input, params.as_slice()) {
+            fail!(AbiError::WrongParameterType);
+        }
+
+        TokenValue::pack_values_into_chain(
+            input,
+            vec![self.get_input_id().write_to_new_cell()?.into()],
+            &self.abi_version
+        )
+    }
+
     /// Encodes provided function parameters into `BuilderData` containing ABI contract call.
     pub fn encode_run_local_input(&self, time: u64, input: &[Token]) -> Result<BuilderData> {
         let params = self.input_params();
