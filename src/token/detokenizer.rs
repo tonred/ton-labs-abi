@@ -125,7 +125,7 @@ impl Token {
         S: Serializer,
     {
         if let Some(key) = value {
-            Self::detokenize_bytes(&key.to_bytes().to_vec(), serializer)
+            Self::detokenize_bytes(&key.to_bytes(), serializer)
         } else {
             serializer.serialize_str("")
         }
@@ -136,7 +136,7 @@ impl Token {
         S: Serializer,
     {
         if let Some(key) = value {
-            Self::detokenize_bytes(&key.to_bytes().to_vec(), serializer)
+            Self::detokenize_bytes(&key.to_bytes(), serializer)
         } else {
             serializer.serialize_str("")
         }

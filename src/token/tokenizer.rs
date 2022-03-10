@@ -18,7 +18,7 @@ use crate::{
 };
 
 use serde_json::Value;
-use std::{collections::{HashMap, BTreeMap}, io::Cursor, str::FromStr};
+use std::{collections::{HashMap, BTreeMap}, str::FromStr};
 use num_bigint::{Sign, BigInt, BigUint};
 use num_traits::cast::ToPrimitive;
 use ton_block::{Grams, MsgAddress};
@@ -280,7 +280,7 @@ impl Tokenizer {
 
         let data = base64::decode(string)
             .map_err(|_| AbiError::InvalidParameterValue { val: value.clone() } )?;
-        let cell = deserialize_tree_of_cells(&mut Cursor::new(data))
+        let cell = deserialize_tree_of_cells(&mut data.as_slice())
             .map_err(|_| AbiError::InvalidParameterValue { val: value.clone() } )?;
         Ok(TokenValue::Cell(cell))
     }
