@@ -20,7 +20,6 @@ use std::collections::BTreeMap;
 use std::fmt;
 use ton_block::{Grams, MsgAddress};
 use ton_types::{Result, Cell};
-use chrono::prelude::Utc;
 use num_bigint::{BigInt, BigUint};
 
 mod tokenizer;
@@ -296,7 +295,7 @@ impl TokenValue {
 
     pub fn get_default_value_for_header(param_type: &ParamType) -> Result<Self> {
         match param_type {
-            ParamType::Time => Ok(TokenValue::Time(Utc::now().timestamp_millis() as u64)),
+            ParamType::Time => Ok(TokenValue::Time(now_ms_u64())),
             ParamType::Expire => Ok(TokenValue::Expire(u32::MAX)),
             ParamType::PublicKey => Ok(TokenValue::PublicKey(None)),
             any_type => Err(
@@ -326,4 +325,17 @@ impl Token {
             kind: self.value.get_param_type(),
         }
     }
+}
+
+#[cfg(all(target_arch = "wasm32", feature = "web"))]
+fn now_ms_u64() -> u64 {
+    js_sys::Date::now() as u64
+}
+
+#[cfg(not(all(target_arch = "wasm32", feature = "web")))]
+fn now_ms_u64() -> u64 {
+    use std::time::SystemTime;
+
+    let duration = (SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)).expect("Shouldn't fail");
+    duration.as_secs() * 1000 + duration.subsec_millis() as u64
 }

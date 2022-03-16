@@ -1261,12 +1261,11 @@ mod types_check_tests {
 
 mod default_values_tests {
     use crate::{ParamType, TokenValue};
-    use chrono::prelude::Utc;
 
     #[test]
     fn test_time_default_value() {
         if let TokenValue::Time(time) = TokenValue::get_default_value_for_header(&ParamType::Time).unwrap() {
-            let now = Utc::now().timestamp_millis() as u64;
+            let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis() as u64;
             assert!(time <= now && time >= now - 1000);
         } else {
             panic!("Wrong value type");
