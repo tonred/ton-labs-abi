@@ -142,10 +142,10 @@ fn test_constructor_call() {
     let params = r#"{}"#;
 
     let test_tree = encode_function_call(
-        WALLET_ABI.to_owned(),
-        "constructor".to_owned(),
+        WALLET_ABI,
+        "constructor",
         None,
-        params.to_owned(),
+        params,
         false,
         None,
     ).unwrap();
@@ -161,8 +161,8 @@ fn test_constructor_call() {
     assert_eq!(test_tree, expected_tree);
 
     let response = decode_unknown_function_call(
-        WALLET_ABI.to_owned(),
-        test_tree.clone(),
+        WALLET_ABI,
+        test_tree,
         false
     ).unwrap();
 
@@ -173,7 +173,7 @@ fn test_constructor_call() {
     let test_tree = SliceData::from_raw(vec![0xE8, 0xB5, 0x5F, 0x3F], 32);
 
     let response = decode_unknown_function_response(
-        WALLET_ABI.to_owned(),
+        WALLET_ABI,
         test_tree.clone(),
         false
     )
@@ -184,8 +184,8 @@ fn test_constructor_call() {
 
 
     let response = decode_function_response(
-        WALLET_ABI.to_owned(),
-        "constructor".to_owned(),
+        WALLET_ABI,
+        "constructor",
         test_tree,
         false
     )
@@ -207,10 +207,10 @@ fn test_signed_call() {
     let pair = Keypair::generate(&mut rand::thread_rng());
 
     let test_tree = encode_function_call(
-        WALLET_ABI.to_owned(),
-        "createArbitraryLimit".to_owned(),
+        WALLET_ABI,
+        "createArbitraryLimit",
         None,
-        params.to_owned(),
+        params,
         false,
         Some(&pair),
     )
@@ -219,7 +219,7 @@ fn test_signed_call() {
     let mut test_tree = SliceData::from(test_tree.into_cell().unwrap());
 
     let response = decode_unknown_function_call(
-        WALLET_ABI.to_owned(),
+        WALLET_ABI,
         test_tree.clone(),
         false
     )
@@ -227,7 +227,7 @@ fn test_signed_call() {
 
     assert_eq!(
         serde_json::from_str::<serde_json::Value>(&response.params).unwrap(),
-        serde_json::from_str::<serde_json::Value>(&expected_params).unwrap());
+        serde_json::from_str::<serde_json::Value>(expected_params).unwrap());
     assert_eq!(response.function_name, "createArbitraryLimit");
 
     let mut expected_tree = BuilderData::new();
@@ -256,8 +256,8 @@ fn test_signed_call() {
         .unwrap().into_cell().unwrap());
 
     let response = decode_function_response(
-        WALLET_ABI.to_owned(),
-        "createArbitraryLimit".to_owned(),
+        WALLET_ABI,
+        "createArbitraryLimit",
         response_tree.clone(),
         false
     )
@@ -267,7 +267,7 @@ fn test_signed_call() {
 
 
     let response = decode_unknown_function_response(
-        WALLET_ABI.to_owned(),
+        WALLET_ABI,
         response_tree,
         false
     )
@@ -288,10 +288,10 @@ fn test_not_signed_call() {
     }"#;
 
     let test_tree = encode_function_call(
-        WALLET_ABI.to_owned(),
-        "getLimit".to_owned(),
-        Some(header.to_owned()),
-        params.to_owned(),
+        WALLET_ABI,
+        "getLimit",
+        Some(header),
+        params,
         false,
         None,
     )
@@ -316,10 +316,10 @@ fn test_add_signature_full() {
     let header = "{}";
 
     let (msg, data_to_sign) = prepare_function_call_for_sign(
-        WALLET_ABI.to_owned(),
-        "getLimit".to_owned(),
-        Some(header.to_owned()),
-        params.to_owned()
+        WALLET_ABI,
+        "getLimit",
+        Some(header),
+        params
     )
     .unwrap();
 
@@ -327,12 +327,12 @@ fn test_add_signature_full() {
     let signature = pair.sign(data_to_sign.as_slice()).to_bytes().to_vec();
 
     let msg = add_sign_to_function_call(
-        WALLET_ABI.to_owned(),
+        WALLET_ABI,
         &signature,
         Some(&pair.public.to_bytes()),
         msg.into_cell().unwrap().into()).unwrap();
 
-    let decoded = decode_unknown_function_call(WALLET_ABI.to_owned(), msg.into_cell().unwrap().into(), false).unwrap();
+    let decoded = decode_unknown_function_call(WALLET_ABI, msg.into_cell().unwrap().into(), false).unwrap();
 
     assert_eq!(decoded.params, params);
 }
@@ -344,7 +344,7 @@ fn test_find_event() {
             smallvec![0x0C, 0xAF, 0x24, 0xBE, 0xFF, 0x80])
         .unwrap().into_cell().unwrap());
 
-    let decoded = decode_unknown_function_response(WALLET_ABI.to_owned(), event_tree, false).unwrap();
+    let decoded = decode_unknown_function_response(WALLET_ABI, event_tree, false).unwrap();
 
     assert_eq!(decoded.function_name, "event");
     assert_eq!(decoded.params, r#"{"param":"255"}"#);

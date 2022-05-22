@@ -1,5 +1,3 @@
-use std::io::Cursor;
-
 use ton_block::{Deserializable, StateInit};
 use ton_types::{deserialize_cells_tree, Result, SliceData};
 
@@ -13,7 +11,7 @@ const PUB_KEY: [u8; ed25519_dalek::PUBLIC_KEY_LENGTH] = [
 
 #[test]
 fn test_pubkey() -> Result<()> {
-    let mut si_roots = deserialize_cells_tree(&mut Cursor::new(DEPOOL_TVC))?;
+    let mut si_roots = deserialize_cells_tree(&mut DEPOOL_TVC)?;
     assert_eq!(si_roots.len(), 1);
 
     let state_init = StateInit::construct_from(&mut SliceData::from(si_roots.remove(0)))?;

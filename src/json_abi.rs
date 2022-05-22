@@ -23,19 +23,19 @@ use ton_types::{Result, BuilderData, SliceData};
 /// Encodes `parameters` for given `function` of contract described by `abi` into `BuilderData`
 /// which can be used as message body for calling contract
 pub fn encode_function_call(
-    abi: String,
-    function: String,
-    header: Option<String>,
-    parameters: String,
+    abi: &str,
+    function: &str,
+    header: Option<&str>,
+    parameters: &str,
     internal: bool,
     pair: Option<&Keypair>,
 ) -> Result<BuilderData> {
-    let contract = Contract::load(abi.as_bytes())?;
+    let contract = Contract::load(abi)?;
 
-    let function = contract.function(&function)?;
+    let function = contract.function(function)?;
 
     let mut header_tokens = if let Some(header) = header {
-        let v: Value = serde_json::from_str(&header).map_err(|err| AbiError::SerdeError { err } )?;
+        let v: Value = serde_json::from_str(header).map_err(|err| AbiError::SerdeError { err } )?;
         Tokenizer::tokenize_optional_params(function.header_params(), &v, &HashMap::new())?
     } else {
         HashMap::new()
@@ -45,7 +45,7 @@ pub fn encode_function_call(
         header_tokens.insert("pubkey".to_owned(), TokenValue::PublicKey(pair.map(|pair| pair.public)));
     }
 
-    let v: Value = serde_json::from_str(&parameters).map_err(|err| AbiError::SerdeError { err } )?;
+    let v: Value = serde_json::from_str(parameters).map_err(|err| AbiError::SerdeError { err } )?;
     let input_tokens = Tokenizer::tokenize_all_params(function.input_params(), &v)?;
 
     function.encode_input(&header_tokens, &input_tokens, internal, pair)
@@ -55,23 +55,23 @@ pub fn encode_function_call(
 /// which can be used as message body for calling contract. Message body is prepared for
 /// signing. Sign should be the added by `add_sign_to_function_call` function
 pub fn prepare_function_call_for_sign(
-    abi: String,
-    function: String,
-    header: Option<String>,
-    parameters: String,
+    abi: &str,
+    function: &str,
+    header: Option<&str>,
+    parameters: &str,
 ) -> Result<(BuilderData, ton_types::UInt256)> {
-    let contract = Contract::load(abi.as_bytes())?;
+    let contract = Contract::load(abi)?;
 
-    let function = contract.function(&function)?;
+    let function = contract.function(function)?;
 
     let header_tokens = if let Some(header) = header {
-        let v: Value = serde_json::from_str(&header).map_err(|err| AbiError::SerdeError { err } )?;
+        let v: Value = serde_json::from_str(header).map_err(|err| AbiError::SerdeError { err } )?;
         Tokenizer::tokenize_optional_params(function.header_params(), &v, &HashMap::new())?
     } else {
         HashMap::new()
     };
 
-    let v: Value = serde_json::from_str(&parameters).map_err(|err| AbiError::SerdeError { err } )?;
+    let v: Value = serde_json::from_str(parameters).map_err(|err| AbiError::SerdeError { err } )?;
     let input_tokens = Tokenizer::tokenize_all_params(function.input_params(), &v)?;
 
     function.create_unsigned_call(&header_tokens, &input_tokens, false, true)
@@ -79,25 +79,25 @@ pub fn prepare_function_call_for_sign(
 
 /// Add sign to messsage body returned by `prepare_function_call_for_sign` function
 pub fn add_sign_to_function_call(
-    abi: String,
+    abi: &str,
     signature: &[u8],
     public_key: Option<&[u8]>,
     function_call: SliceData
 ) -> Result<BuilderData> {
-    let contract = Contract::load(abi.as_bytes())?;
+    let contract = Contract::load(abi)?;
     contract.add_sign_to_encoded_input(signature, public_key, function_call)
 }
 
 /// Decodes output parameters returned by contract function call
 pub fn decode_function_response(
-    abi: String,
-    function: String,
+    abi: &str,
+    function: &str,
     response: SliceData,
     internal: bool,
 ) -> Result<String> {
-    let contract = Contract::load(abi.as_bytes())?;
+    let contract = Contract::load(abi)?;
 
-    let function = contract.function(&function)?;
+    let function = contract.function(function)?;
 
     let tokens = function.decode_output(response, internal)?;
 
@@ -111,11 +111,11 @@ pub struct DecodedMessage {
 
 /// Decodes output parameters returned by some function call. Returns parametes and function name
 pub fn decode_unknown_function_response(
-    abi: String,
+    abi: &str,
     response: SliceData,
     internal: bool,
 ) -> Result<DecodedMessage> {
-    let contract = Contract::load(abi.as_bytes())?;
+    let contract = Contract::load(abi)?;
 
     let result = contract.decode_output(response, internal)?;
 
@@ -129,11 +129,11 @@ pub fn decode_unknown_function_response(
 
 /// Decodes output parameters returned by some function call. Returns parametes and function name
 pub fn decode_unknown_function_call(
-    abi: String,
+    abi: &str,
     response: SliceData,
     internal: bool,
 ) -> Result<DecodedMessage> {
-    let contract = Contract::load(abi.as_bytes())?;
+    let contract = Contract::load(abi)?;
 
     let result = contract.decode_input(response, internal)?;
 
@@ -147,7 +147,7 @@ pub fn decode_unknown_function_call(
 
 /// Changes initial values for public contract variables
 pub fn update_contract_data(abi: &str, parameters: &str, data: SliceData) -> Result<SliceData> {
-    let contract = Contract::load(abi.as_bytes())?;
+    let contract = Contract::load(abi)?;
 
     let data_json: serde_json::Value = serde_json::from_str(parameters)?;
 
@@ -164,14 +164,14 @@ pub fn update_contract_data(abi: &str, parameters: &str, data: SliceData) -> Res
 
 /// Decode initial values of public contract variables
 pub fn decode_contract_data(abi: &str, data: SliceData) -> Result<String> {
-    let contract = Contract::load(abi.as_bytes())?;
+    let contract = Contract::load(abi)?;
 
     Detokenizer::detokenize(&contract.decode_data(data)?)
 }
 
 /// Decode account storage fields
 pub fn decode_storage_fields(abi: &str, data: SliceData) -> Result<String> {
-    let contract = Contract::load(abi.as_bytes())?;
+    let contract = Contract::load(abi)?;
 
     let decoded = contract.decode_storage_fields(data)?;
 

@@ -201,7 +201,7 @@ impl Function {
 
     /// Decodes function id from contract answer
     pub fn decode_output_id(mut data: SliceData) -> Result<u32> {
-        Ok(data.get_next_u32()?)
+        data.get_next_u32()
     }
 
     /// Encodes provided function parameters into `BuilderData` containing ABI contract call

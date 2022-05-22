@@ -18,7 +18,6 @@ use serde_json;
 use smallvec::SmallVec;
 use std::collections::HashMap;
 use std::fmt::Display;
-use std::io;
 use ton_block::Serializable;
 use ton_types::{error, fail, BuilderData, HashmapE, Result, SliceData};
 
@@ -127,7 +126,7 @@ where
 
 /// Contract function specification.
 #[derive(Debug, Clone, PartialEq, Deserialize)]
-pub(crate) struct SerdeFunction {
+pub struct SerdeFunction {
     /// Function name.
     pub name: String,
     /// Function input.
@@ -144,7 +143,7 @@ pub(crate) struct SerdeFunction {
 
 /// Contract event specification.
 #[derive(Debug, Clone, PartialEq, Deserialize)]
-pub(crate) struct SerdeEvent {
+pub struct SerdeEvent {
     /// Event name.
     pub name: String,
     /// Event input.
@@ -160,7 +159,7 @@ fn bool_true() -> bool {
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize)]
-struct SerdeContract {
+pub struct SerdeContract {
     /// ABI version up to 2.
     #[serde(rename="ABI version")]
     pub abi_version: Option<u8>,
@@ -209,71 +208,13 @@ pub struct Contract {
 }
 
 impl Contract {
+    pub fn load(reader: &str) -> Result<Self> {
+        serde_json::from_str::<SerdeContract>(reader)?.try_into()
+    }
+
     /// Loads contract from json.
-    pub fn load<T: io::Read>(reader: T) -> Result<Self> {
-        // A little trick similar to `Param` deserialization: first deserialize JSON into temporary
-        // struct `SerdeContract` containing necessary fields and then repack fields into HashMap
-        let mut serde_contract: SerdeContract = serde_json::from_reader(reader)?;
-
-        let version = if let Some(str_version) = &serde_contract.version {
-            AbiVersion::parse(str_version)?
-        } else if let Some(version) = serde_contract.abi_version {
-            AbiVersion::from_parts(version, 0)
-        } else {
-            fail!(AbiError::InvalidVersion("No version in ABI JSON".to_owned()));
-        };
-
-        if !version.is_supported() {
-            fail!(AbiError::InvalidVersion(format!("Provided ABI version is not supported ({})", version)));
-        }
-
-        if version.major == 1 {
-            if !serde_contract.header.is_empty() {
-                return Err(AbiError::InvalidData {
-                    msg: "Header parameters are not supported in ABI v1".into(),
-                }
-                .into());
-            }
-            if serde_contract.set_time {
-                serde_contract.header.push(Param {
-                    name: "time".into(),
-                    kind: ParamType::Time,
-                });
-            }
-        }
-
-        if !serde_contract.fields.is_empty() && version < ABI_VERSION_2_1 {
-            fail!(AbiError::InvalidData {msg: "Storage fields are supported since ABI v2.1".into()});
-        }
-
-        let mut result = Self {
-            abi_version: version,
-            header: serde_contract.header,
-            functions: HashMap::new(),
-            events: HashMap::new(),
-            data: HashMap::new(),
-            fields: serde_contract.fields,
-        };
-
-        for function in serde_contract.functions {
-            Self::check_params_support(&version, function.inputs.iter())?;
-            Self::check_params_support(&version, function.outputs.iter())?;
-            result.functions.insert(
-                function.name.clone(),
-                Function::from_serde(version, function, result.header.clone()));
-        }
-
-        for event in serde_contract.events {
-            Self::check_params_support(&version, event.inputs.iter())?;
-            result.events.insert(event.name.clone(), Event::from_serde(version, event));
-        }
-
-        Self::check_params_support(&version, serde_contract.data.iter().map(|val| &val.value))?;
-        for data in serde_contract.data {
-            result.data.insert(data.value.name.clone(), data);
-        }
-
-        Ok(result)
+    pub fn load_from_json(reader: serde_json::Value) -> Result<Self> {
+        serde_json::from_value::<SerdeContract>(reader)?.try_into()
     }
 
     fn check_params_support<'a, T>(abi_version: &AbiVersion, params: T) -> Result<()>
@@ -480,6 +421,72 @@ impl Contract {
     /// Decode account storage fields
     pub fn decode_storage_fields(&self, data: SliceData) -> Result<Vec<Token>> {
         TokenValue::decode_params(&self.fields, data, &self.abi_version, false)
+    }
+}
+
+impl TryFrom<SerdeContract> for Contract {
+    type Error = anyhow::Error;
+
+    fn try_from(mut serde_contract: SerdeContract) -> Result<Self> {
+        let version = if let Some(str_version) = &serde_contract.version {
+            AbiVersion::parse(str_version)?
+        } else if let Some(version) = serde_contract.abi_version {
+            AbiVersion::from_parts(version, 0)
+        } else {
+            fail!(AbiError::InvalidVersion("No version in ABI JSON".to_owned()));
+        };
+
+        if !version.is_supported() {
+            fail!(AbiError::InvalidVersion(format!("Provided ABI version is not supported ({})", version)));
+        }
+
+        if version.major == 1 {
+            if !serde_contract.header.is_empty() {
+                return Err(AbiError::InvalidData {
+                    msg: "Header parameters are not supported in ABI v1".into(),
+                }
+                    .into());
+            }
+            if serde_contract.set_time {
+                serde_contract.header.push(Param {
+                    name: "time".into(),
+                    kind: ParamType::Time,
+                });
+            }
+        }
+
+        if !serde_contract.fields.is_empty() && version < ABI_VERSION_2_1 {
+            fail!(AbiError::InvalidData {msg: "Storage fields are supported since ABI v2.1".into()});
+        }
+
+        let mut result = Self {
+            abi_version: version,
+            header: serde_contract.header,
+            functions: HashMap::new(),
+            events: HashMap::new(),
+            data: HashMap::new(),
+            fields: serde_contract.fields,
+        };
+
+        for function in serde_contract.functions {
+            Self::check_params_support(&version, function.inputs.iter())?;
+            Self::check_params_support(&version, function.outputs.iter())?;
+            result.functions.insert(
+                function.name.clone(),
+                Function::from_serde(version, function, result.header.clone()));
+        }
+
+        for event in serde_contract.events {
+            Self::check_params_support(&version, event.inputs.iter())?;
+            result.events.insert(event.name.clone(), Event::from_serde(version, event));
+        }
+
+        Self::check_params_support(&version, serde_contract.data.iter().map(|val| &val.value))?;
+        for data in serde_contract.data {
+            result.data.insert(data.value.name.clone(), data);
+        }
+
+        Ok(result)
     }
 }
 

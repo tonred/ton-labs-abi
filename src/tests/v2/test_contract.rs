@@ -77,7 +77,7 @@ const TEST_ABI: &str = r#"
 
 #[test]
 fn test_abi_parse() {
-    let parsed_contract = Contract::load(TEST_ABI.as_bytes()).unwrap();
+    let parsed_contract = Contract::load(TEST_ABI).unwrap();
 
     let mut functions = HashMap::new();
     let header = vec![
@@ -215,7 +215,7 @@ fn test_abi_parse() {
 
 #[test]
 fn print_function_singnatures() {
-    let contract = Contract::load(TEST_ABI.as_bytes()).unwrap();
+    let contract = Contract::load(TEST_ABI).unwrap();
 
     println!("Functions\n");
 
