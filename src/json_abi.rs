@@ -152,7 +152,7 @@ pub fn update_contract_data(abi: &str, parameters: &str, data: SliceData) -> Res
     let data_json: serde_json::Value = serde_json::from_str(parameters)?;
 
     let params: Vec<_> = contract
-        .data()
+        .data
         .values()
         .map(|item| item.value.clone())
         .collect();

@@ -194,17 +194,17 @@ pub struct DecodedMessage {
 #[derive(Clone, Debug, PartialEq)]
 pub struct Contract {
     /// ABI version
-    abi_version: AbiVersion,
+    pub abi_version: AbiVersion,
     /// Contract functions header parameters
-    header: Vec<Param>,
+    pub header: Vec<Param>,
     /// Contract functions.
-    functions: HashMap<String, Function>,
+    pub functions: HashMap<String, Function>,
     /// Contract events.
-    events: HashMap<String, Event>,
+    pub events: HashMap<String, Event>,
     /// Contract initial data.
-    data: HashMap<String, DataItem>,
+    pub data: HashMap<String, DataItem>,
     /// Contract storage fields.
-    fields: Vec<Param>,
+    pub fields: Vec<Param>,
 }
 
 impl Contract {
@@ -219,7 +219,7 @@ impl Contract {
 
     fn check_params_support<'a, T>(abi_version: &AbiVersion, params: T) -> Result<()>
         where
-        T: std::iter::Iterator<Item = &'a Param>
+        T: Iterator<Item = &'a Param>
     {
         for param in params {
             if !param.kind.is_supported(abi_version) {
@@ -266,36 +266,6 @@ impl Contract {
         }
 
         Err(AbiError::InvalidFunctionId { id }.into())
-    }
-
-    /// Returns functions collection
-    pub fn functions(&self) -> &HashMap<String, Function> {
-        &self.functions
-    }
-
-    /// Returns header parameters set
-    pub fn header(&self) -> &Vec<Param> {
-        &self.header
-    }
-
-    /// Returns events collection
-    pub fn events(&self) -> &HashMap<String, Event> {
-        &self.events
-    }
-
-    /// Returns data collection
-    pub fn data(&self) -> &HashMap<String, DataItem> {
-        &self.data
-    }
-
-    /// Returns storage fields collection
-    pub fn fields(&self) -> &Vec<Param> {
-        &self.fields
-    }
-
-    /// Returns version
-    pub fn version(&self) -> &AbiVersion {
-        &self.abi_version
     }
 
     /// Decodes contract answer and returns name of the function called
