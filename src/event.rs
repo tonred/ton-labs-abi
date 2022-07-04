@@ -32,7 +32,7 @@ pub struct Event {
 
 impl Event {
     /// Creates `Function` struct from parsed JSON struct `SerdeFunction`
-    pub(crate) fn from_serde(abi_version: AbiVersion, serde_event: SerdeEvent) -> Self {
+    pub fn from_serde(abi_version: AbiVersion, serde_event: SerdeEvent) -> Self {
         let mut event = Event {
             abi_version,
             name: serde_event.name,
