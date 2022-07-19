@@ -13,7 +13,7 @@
 
 //! Contract function call builder.
 
-use crate::{contract::ABI_VERSION_1_0, error::AbiError, param::Param, param_type::ParamType, token::{SerializedValue, Token, TokenValue}};
+use crate::{contract::{ABI_VERSION_1_0, ABI_VERSION_2_3}, error::AbiError, param::Param, param_type::ParamType, token::{SerializedValue, Token, TokenValue}};
 
 use crate::contract::{AbiVersion, SerdeFunction};
 use ed25519::signature::Signer;
@@ -21,7 +21,7 @@ use ed25519_dalek::{Keypair, SIGNATURE_LENGTH};
 use sha2::{Digest, Sha256};
 use smallvec::SmallVec;
 use std::collections::HashMap;
-use ton_block::Serializable;
+use ton_block::{Serializable, MsgAddressInt};
 use ton_types::{BuilderData, fail, IBitstring, Result, SliceData};
 
 /// Contract function specification.
@@ -211,9 +211,10 @@ impl Function {
         input: &[Token],
         internal: bool,
         pair: Option<&Keypair>,
+        address: Option<MsgAddressInt>,
     ) -> Result<BuilderData> {
         let (mut builder, hash) =
-            self.create_unsigned_call(header, input, internal, pair.is_some())?;
+            self.create_unsigned_call(header, input, internal, pair.is_some(), address)?;
 
         if !internal {
             builder = match pair {
@@ -342,6 +343,7 @@ impl Function {
         input: &[Token],
         internal: bool,
         reserve_sign: bool,
+        address: Option<MsgAddressInt>,
     ) -> Result<(BuilderData, ton_types::UInt256)> {
         let params = self.input_params();
 
@@ -363,9 +365,14 @@ impl Function {
             } else {
                 // reserve in-cell data
                 if reserve_sign {
-                    sign_builder.append_bit_one()?;
-                    sign_builder.append_raw(&[0u8; SIGNATURE_LENGTH], SIGNATURE_LENGTH * 8)?;
-                    remove_bits = 1 + SIGNATURE_LENGTH * 8;
+                    if self.abi_version >= ABI_VERSION_2_3 {
+                        sign_builder.append_raw(&[0u8; 128], ParamType::Address.max_bit_size())?;
+                        remove_bits = ParamType::Address.max_bit_size();
+                    } else {
+                        sign_builder.append_bit_one()?;
+                        sign_builder.append_raw(&[0u8; SIGNATURE_LENGTH], SIGNATURE_LENGTH * 8)?;
+                        remove_bits = 1 + SIGNATURE_LENGTH * 8;
+                    }
                 } else {
                     sign_builder.append_bit_zero()?;
                     remove_bits = 1;
@@ -373,8 +380,8 @@ impl Function {
             }
             cells.insert(0, SerializedValue {
                 data: sign_builder,
-                max_bits: 1 + SIGNATURE_LENGTH * 8,
-                max_refs: 0
+                max_bits: if self.abi_version >= ABI_VERSION_2_3 { ParamType::Address.max_bit_size() } else { 1 + SIGNATURE_LENGTH * 8 },
+                max_refs: if remove_ref { 1 } else { 0 }
             });
         }
 
@@ -393,7 +400,14 @@ impl Function {
             builder = BuilderData::from_slice(&slice);
         }
 
-        let hash = builder.clone().into_cell()?.repr_hash();
+        let hash = if self.abi_version >= ABI_VERSION_2_3 && reserve_sign {
+            let address = address.ok_or(AbiError::AddressRequired)?;
+            let mut address_builder = address.write_to_new_cell()?;
+            address_builder.append_builder(&builder)?;
+            address_builder.into_cell()?.repr_hash()
+        } else {
+            builder.clone().into_cell()?.repr_hash()
+        };
 
         Ok((builder, hash))
     }
