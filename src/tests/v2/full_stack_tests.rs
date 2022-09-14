@@ -148,6 +148,7 @@ fn test_constructor_call() {
         params,
         false,
         None,
+        None,
     ).unwrap();
 
     let mut expected_tree = BuilderData::new();
@@ -213,6 +214,7 @@ fn test_signed_call() {
         params,
         false,
         Some(&pair),
+        None,
     )
     .unwrap();
 
@@ -294,6 +296,7 @@ fn test_not_signed_call() {
         params,
         false,
         None,
+        None,
     )
     .unwrap();
 
@@ -319,7 +322,8 @@ fn test_add_signature_full() {
         WALLET_ABI,
         "getLimit",
         Some(header),
-        params
+        params,
+        None,
     )
     .unwrap();
 

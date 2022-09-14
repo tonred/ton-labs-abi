@@ -20,10 +20,11 @@ use ton_block::{AnycastInfo, Grams, MsgAddress, Serializable};
 use ton_types::dictionary::{HashmapE, HashmapType};
 use ton_types::{AccountId, BuilderData, Cell, IBitstring, Result, SliceData};
 use smallvec::smallvec;
+use num_traits::Num;
 
 use crate::contract::{ABI_VERSION_1_0, ABI_VERSION_2_0, ABI_VERSION_2_1, ABI_VERSION_2_2, AbiVersion, MAX_SUPPORTED_VERSION};
 
-use crate::{Int, Param, ParamType, Token, TokenValue, Uint};
+use crate::{Int, Param, ParamType, Token, MapKeyTokenValue, TokenValue, Uint};
 
 fn put_array_into_map<T: Serializable>(array: &[T]) -> HashmapE {
     let mut map = HashmapE::with_bit_len(32);
@@ -803,9 +804,9 @@ fn test_map() {
         ParamType::Bytes,
         BTreeMap::from_iter(
             vec![
-                ("1".to_owned(), TokenValue::Bytes(bytes.to_vec())),
-                ("2".to_owned(), TokenValue::Bytes(bytes.to_vec())),
-                ("3".to_owned(), TokenValue::Bytes(bytes.to_vec())),
+                (MapKeyTokenValue::Uint(Uint::new(1, 8)), TokenValue::Bytes(bytes.to_vec())),
+                (MapKeyTokenValue::Uint(Uint::new(2, 8)), TokenValue::Bytes(bytes.to_vec())),
+                (MapKeyTokenValue::Uint(Uint::new(3, 8)), TokenValue::Bytes(bytes.to_vec())),
             ]
         )
     );
@@ -832,9 +833,9 @@ fn test_map() {
         ParamType::Int(128),
         BTreeMap::from_iter(
             vec![
-                ("-1".to_owned(), TokenValue::Int(Int::new(-1, 128))),
-                ("0".to_owned(), TokenValue::Int(Int::new(0, 128))),
-                ("1".to_owned(), TokenValue::Int(Int::new(1, 128))),
+                (MapKeyTokenValue::Int(Int::new(-1, 16)), TokenValue::Int(Int::new(-1, 128))),
+                (MapKeyTokenValue::Int(Int::new(0, 16)), TokenValue::Int(Int::new(0, 128))),
+                (MapKeyTokenValue::Int(Int::new(1, 16)), TokenValue::Int(Int::new(1, 128))),
             ]
         )
     );
@@ -865,7 +866,7 @@ fn test_map() {
                 .iter()
                 .map(|i| {
                     (
-                        i.0.to_string(),
+                        MapKeyTokenValue::Uint(Uint::new(i.0 as u128, 128)),
                         TokenValue::Tuple(tokens_from_values(vec![
                             TokenValue::Uint(Uint::new(i.0 as u128, 32)),
                             TokenValue::Bool(i.1),
@@ -933,11 +934,11 @@ fn test_address_map_key() {
     let map = vec_to_map(
         &vec![
             (
-                addr1,
+                addr1.clone(),
                 BuilderData::with_raw((123u32).to_be_bytes().as_ref().into(), 32).unwrap(),
             ),
             (
-                addr2,
+                addr2.clone(),
                 BuilderData::with_raw((456u32).to_be_bytes().as_ref().into(), 32).unwrap(),
             ),
         ],
@@ -949,8 +950,8 @@ fn test_address_map_key() {
         ParamType::Uint(32),
         BTreeMap::from_iter(
             vec![
-                (addr1_str.to_owned(), TokenValue::Uint(Uint::new(123, 32))),
-                (addr2_str.to_owned(), TokenValue::Uint(Uint::new(456, 32))),
+                (MapKeyTokenValue::Address(addr1), TokenValue::Uint(Uint::new(123, 32))),
+                (MapKeyTokenValue::Address(addr2), TokenValue::Uint(Uint::new(456, 32))),
             ]
         )
     );
@@ -1014,7 +1015,7 @@ fn test_big_map_value() {
         ParamType::Tuple(params_from_tokens(&tuple_tokens)),
         BTreeMap::from_iter(
             vec![(
-                "0x000000000000000000000000000000000000000000000000000000000000007b".to_owned(),
+                MapKeyTokenValue::Uint(Uint { number: BigUint::from_str_radix("000000000000000000000000000000000000000000000000000000000000007b", 16).unwrap(), size: 256 }),
                 tuple.clone()
             )]
         )

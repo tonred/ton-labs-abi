@@ -14,7 +14,7 @@
 //! ABI param and parsing for it.
 use crate::{
     error::AbiError, int::{Int, Uint}, param::Param, param_type::ParamType,
-    token::{Token, TokenValue}
+    token::{Token, MapKeyTokenValue, TokenValue}
 };
 
 use serde_json::Value;
@@ -29,6 +29,39 @@ use ton_types::{deserialize_tree_of_cells, error, fail, Cell, Result};
 pub struct Tokenizer;
 
 impl Tokenizer {
+    pub fn tokenize_map_key_parameter(param: &ParamType, value: &str) -> Result<MapKeyTokenValue> {
+        match param {
+            &ParamType::Int(size) => {
+                let number = read_int_string(value)
+                    .ok_or_else(|| AbiError::InvalidParameterValue { val: Value::String(value.to_string()) })?;
+
+                if !Self::check_int_size(&number, size + 1) {
+                    fail!(AbiError::InvalidParameterValue { val: Value::String(value.to_owned()) } )
+                } else {
+                    Ok(MapKeyTokenValue::Int(Int{number, size}))
+                }
+            }
+            &ParamType::Uint(size) => {
+                let number = read_uint_string(value)
+                    .ok_or_else(|| AbiError::InvalidParameterValue { val: Value::String(value.to_string()) })?;
+
+                if !Self::check_uint_size(&number, size + 1) {
+                    fail!(AbiError::InvalidParameterValue { val: Value::String(value.to_owned()) } )
+                } else {
+                    Ok(MapKeyTokenValue::Uint(Uint{number, size}))
+                }
+            }
+            ParamType::Address => {
+                let address = MsgAddress::from_str(value)
+                    .map_err(|_| AbiError::WrongDataFormat { val: Value::String(value.to_owned()) } )?;
+                Ok(MapKeyTokenValue::Address(address))
+            }
+            _ => Err(error!(AbiError::InvalidData {
+                msg: "Only integer and std address values can be map keys".to_owned()
+            }))
+        }
+    }
+
     /// Tries to parse a JSON value as a token of given type.
     pub fn tokenize_parameter(param: &ParamType, value: &Value) -> Result<TokenValue> {
         match param {
@@ -161,15 +194,7 @@ impl Tokenizer {
         if let Some(number) = value.as_i64() {
             Ok(BigInt::from(number))
         } else if let Some(string) = value.as_str() {
-            let result = if string.starts_with("-0x") {
-                BigInt::parse_bytes(&string.as_bytes()[3..], 16)
-                .map(|number| -number)
-            } else if string.starts_with("0x") {
-                BigInt::parse_bytes(&string.as_bytes()[2..], 16)
-            } else {
-                BigInt::parse_bytes(string.as_bytes(), 10)
-            };
-            match result {
+            match read_int_string(string) {
                 Some(number) => Ok(number),
                 None => fail!(AbiError::InvalidParameterValue { val: value.clone() } )
             }
@@ -183,12 +208,7 @@ impl Tokenizer {
         if let Some(number) = value.as_u64() {
             Ok(BigUint::from(number))
         } else if let Some(string) = value.as_str() {
-            let result = if string.starts_with("0x") {
-                BigUint::parse_bytes(&string.as_bytes()[2..], 16)
-            } else {
-                BigUint::parse_bytes(string.as_bytes(), 10)
-            };
-            match result {
+            match read_uint_string(string) {
                 Some(number) => Ok(number),
                 None => fail!(AbiError::InvalidParameterValue { val: value.clone() } )
             }
@@ -287,10 +307,11 @@ impl Tokenizer {
 
     fn tokenize_hashmap(key_type: &ParamType, value_type: &ParamType, map_value: &Value) -> Result<TokenValue> {
         if let Value::Object(map) = map_value {
-            let mut new_map = BTreeMap::<String, TokenValue>::new();
+            let mut new_map = BTreeMap::<_, _>::new();
             for (key, value) in map.iter() {
+                let key = Self::tokenize_map_key_parameter(key_type, key)?;
                 let value = Self::tokenize_parameter(value_type, value)?;
-                new_map.insert(key.to_string(), value);
+                new_map.insert(key, value);
             }
             Ok(TokenValue::Map(key_type.clone(), value_type.clone(), new_map))
         } else {
@@ -382,5 +403,24 @@ impl Tokenizer {
 
     fn tokenize_ref(inner_type: &ParamType, value: &Value) -> Result<TokenValue> {
         Ok(TokenValue::Ref(Box::new(Self::tokenize_parameter(inner_type, value)?)))
+    }
+}
+
+fn read_int_string(string: &str) -> Option<BigInt> {
+    if string.starts_with("-0x") {
+        BigInt::parse_bytes(&string.as_bytes()[3..], 16)
+            .map(|number| -number)
+    } else if string.starts_with("0x") {
+        BigInt::parse_bytes(&string.as_bytes()[2..], 16)
+    } else {
+        BigInt::parse_bytes(string.as_bytes(), 10)
+    }
+}
+
+fn read_uint_string(string: &str) -> Option<BigUint> {
+    if string.starts_with("0x") {
+        BigUint::parse_bytes(&string.as_bytes()[2..], 16)
+    } else {
+        BigUint::parse_bytes(string.as_bytes(), 10)
     }
 }

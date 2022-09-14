@@ -35,7 +35,7 @@ pub mod error;
 
 pub use param_type::ParamType;
 pub use contract::{Contract, DataItem};
-pub use token::{Token, TokenValue};
+pub use token::{Token, MapKeyTokenValue, TokenValue};
 pub use function::Function;
 pub use event::Event;
 pub use json_abi::*;

@@ -11,7 +11,7 @@
 * limitations under the License.
 */
 
-use crate::{ param_type::ParamType, token::{Token, TokenValue} };
+use crate::{ param_type::ParamType, token::{Token, MapKeyTokenValue, TokenValue} };
 
 use num_bigint::{BigInt, BigUint};
 use serde::ser::{Serialize, Serializer, SerializeMap};
@@ -73,6 +73,13 @@ impl Token {
         serializer.serialize_str(&number.to_str_radix(10))
     }
 
+    pub fn detokenize_grams<S>(number: impl ToString, serializer: S) -> std::result::Result<S::Ok, S::Error>
+        where
+            S: Serializer,
+    {
+        serializer.serialize_str(&number.to_string())
+    }
+
     pub fn detokenize_big_uint<S>(
         number: &BigUint,
         size: usize,
@@ -89,7 +96,7 @@ impl Token {
         serializer.serialize_str(&uint_str)
     }
 
-    pub fn detokenize_hashmap<S>(_key_type: &ParamType, values: &BTreeMap<String, TokenValue>, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    pub fn detokenize_hashmap<S>(_key_type: &ParamType, values: &BTreeMap<MapKeyTokenValue, TokenValue>, serializer: S) -> std::result::Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
@@ -143,6 +150,19 @@ impl Token {
     }
 }
 
+impl Serialize for MapKeyTokenValue {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: Serializer
+    {
+        match self {
+            Self::Uint(uint) => Token::detokenize_big_uint(&uint.number, uint.size, serializer),
+            Self::Int(int) => Token::detokenize_big_int(&int.number, serializer),
+            Self::Address(address) => serializer.serialize_str(&address.to_string()),
+        }
+    }
+}
+
 impl Serialize for TokenValue {
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
     where
@@ -170,7 +190,7 @@ impl Serialize for TokenValue {
             TokenValue::Bytes(ref arr) => Token::detokenize_bytes(arr, serializer),
             TokenValue::FixedBytes(ref arr) => Token::detokenize_bytes(arr, serializer),
             TokenValue::String(string) => serializer.serialize_str(string),
-            TokenValue::Token(gram) => Token::detokenize_big_int(&gram.value(), serializer),
+            TokenValue::Token(gram) => Token::detokenize_grams(gram, serializer),
             TokenValue::Time(time) => {
                 Token::detokenize_big_uint(&BigUint::from(*time), 64, serializer)
             }

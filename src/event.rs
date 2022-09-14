@@ -18,7 +18,7 @@ use crate::contract::{SerdeEvent, AbiVersion};
 use crate::error::AbiError;
 
 /// Contract event specification.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Event {
     /// ABI version
     pub abi_version: AbiVersion,

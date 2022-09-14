@@ -145,6 +145,7 @@ fn test_constructor_call() {
         params,
         false,
         None,
+        None,
     ).unwrap();
 
     let mut expected_tree = BuilderData::with_bitstring(smallvec![0x54, 0xc1, 0xf4, 0x0f, 0x80]).unwrap();
@@ -208,6 +209,7 @@ fn test_signed_call() {
         params,
         false,
         Some(&pair),
+        None,
     )
     .unwrap();
 
@@ -282,6 +284,7 @@ fn test_not_signed_call() {
         params,
         false,
         None,
+        None,
     )
     .unwrap();
 
@@ -302,7 +305,8 @@ fn test_add_signature_full() {
         WALLET_ABI,
         "getLimit",
         Some(header),
-        params
+        params,
+        None,
     )
     .unwrap();
 

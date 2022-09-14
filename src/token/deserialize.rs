@@ -11,16 +11,39 @@
 * limitations under the License.
 */
 
-use crate::{contract::{ABI_VERSION_1_0, AbiVersion}, error::AbiError, int::{Int, Uint}, param::Param, param_type::ParamType, token::{Token, TokenValue}};
+use crate::{contract::{ABI_VERSION_1_0, AbiVersion}, error::AbiError, int::{Int, Uint}, param::Param, param_type::ParamType, token::{Token, MapKeyTokenValue, TokenValue}};
 
 use num_bigint::{BigInt, BigUint};
 use num_traits::ToPrimitive;
-use serde_json;
 use std::collections::BTreeMap;
 use ton_block::{MsgAddress, types::Grams};
 use ton_types::{
     BuilderData, Cell, fail, HashmapE, HashmapType, IBitstring, Result, SliceData
 };
+
+impl MapKeyTokenValue {
+    pub fn read_from(param_type: &ParamType, mut cursor: SliceData) -> Result<(Self, SliceData)> {
+        match param_type {
+            &ParamType::Uint(size) => {
+                let (number, cursor) = TokenValue::read_uint_from_chain(size, cursor)?;
+                Ok((Self::Uint(Uint { number, size }), cursor))
+            }
+            &ParamType::Int(size) => {
+                let (number, cursor) = TokenValue::read_int_from_chain(size, cursor)?;
+                Ok((Self::Int(Int { number, size }), cursor))
+            }
+            ParamType::Address => {
+                cursor = find_next_bits(cursor, 1)?;
+                let address = <MsgAddress as ton_block::Deserializable>::construct_from(&mut cursor)?;
+                Ok((Self::Address(address), cursor))
+            }
+            _ => fail!(AbiError::DeserializationError {
+                msg: "Invalid mapping key type",
+                cursor
+            })
+        }
+    }
+}
 
 impl TokenValue {
     /// Deserializes value from `SliceData` to `TokenValue`
@@ -197,10 +220,7 @@ impl TokenValue {
         let bit_len = key_type.get_map_key_size()?;
         let hashmap = HashmapE::with_hashmap(bit_len, cursor.get_dictionary()?.reference_opt(0));
         hashmap.iterate_slices(|key, value| {
-            let key = Self::read_from(key_type, key, true, abi_version, allow_partial)?.0;
-            let key = serde_json::to_value(&key)?.as_str().ok_or(AbiError::InvalidData {
-                msg: "Non-ordinary key".to_owned()
-            })?.to_owned();
+            let key = MapKeyTokenValue::read_from(key_type, key)?.0;
             let value = Self::read_from(value_type, value, true, abi_version, allow_partial)?.0;
             new_map.insert(key, value);
             Ok(true)

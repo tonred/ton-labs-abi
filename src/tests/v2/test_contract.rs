@@ -219,7 +219,7 @@ fn print_function_singnatures() {
 
     println!("Functions\n");
 
-    let functions = contract.functions();
+    let functions = &contract.functions;
 
     for (_, function) in functions {
         println!("{}", function.get_function_signature());
@@ -229,7 +229,7 @@ fn print_function_singnatures() {
 
     println!("Events\n");
 
-    let events = contract.events();
+    let events = &contract.events;
 
     for (_, event) in events {
         println!("{}", event.get_function_signature());

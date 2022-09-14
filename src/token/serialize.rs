@@ -11,7 +11,7 @@
 * limitations under the License.
 */
 
-use crate::{contract::{ABI_VERSION_1_0, ABI_VERSION_2_2, AbiVersion}, error::AbiError, int::{Int, Uint}, param_type::ParamType, token::{Token, Tokenizer, TokenValue}};
+use crate::{contract::{ABI_VERSION_1_0, ABI_VERSION_2_2, AbiVersion}, error::AbiError, int::{Int, Uint}, param_type::ParamType, token::{Token, MapKeyTokenValue, TokenValue}};
 
 use num_bigint::{BigInt, BigUint, Sign};
 use std::collections::BTreeMap;
@@ -31,6 +31,16 @@ impl From<BuilderData> for SerializedValue {
             max_bits: data.bits_used(),
             max_refs: data.references_used(),
             data,
+        }
+    }
+}
+
+impl MapKeyTokenValue {
+    pub fn write_to_cell(&self) -> Result<BuilderData> {
+        match self {
+            Self::Uint(uint) => TokenValue::write_uint(uint),
+            Self::Int(int) => TokenValue::write_int(int),
+            Self::Address(address) => address.write_to_new_cell()
         }
     }
 }
@@ -320,7 +330,7 @@ impl TokenValue {
         super::MAX_HASH_MAP_INFO_ABOUT_KEY + key_len + value_len <= 1023
     }
 
-    fn write_map(key_type: &ParamType, value_type: &ParamType, value: &BTreeMap<String, TokenValue>, abi_version: &AbiVersion) -> Result<BuilderData> {
+    fn write_map(key_type: &ParamType, value_type: &ParamType, value: &BTreeMap<MapKeyTokenValue, TokenValue>, abi_version: &AbiVersion) -> Result<BuilderData> {
         let key_len = key_type.get_map_key_size()?;
         let value_len = value_type.max_bit_size();
         let value_in_ref = Self::map_value_in_ref(key_len, value_len);
@@ -328,16 +338,9 @@ impl TokenValue {
         let mut hashmap = HashmapE::with_bit_len(key_len);
 
         for (key, value) in value.iter() {
-            let key = Tokenizer::tokenize_parameter(key_type, &key.as_str().into())?;
-
-            let mut key_vec = key.write_to_cells(abi_version)?;
-            if key_vec.len() != 1 {
-                fail!(AbiError::InvalidData {
-                    msg: "Map key must be 1-cell length".to_owned()
-                })
-            };
-            if  &ParamType::Address == key_type &&
-                key_vec[0].data.length_in_bits() != super::STD_ADDRESS_BIT_LENGTH
+            let key = key.write_to_cell()?;
+            if &ParamType::Address == key_type &&
+                key.length_in_bits() != super::STD_ADDRESS_BIT_LENGTH
             {
                 fail!(AbiError::InvalidData {
                     msg: "Only std non-anycast address can be used as map key".to_owned()
@@ -347,7 +350,7 @@ impl TokenValue {
             let data =
                 Self::pack_cells_into_chain(value.write_to_cells(abi_version)?, abi_version)?;
 
-            let slice_key = key_vec.pop().unwrap().data.into_cell()?.into();
+            let slice_key = key.into_cell()?.into();
             if value_in_ref {
                 hashmap.set_builder(slice_key, &data)?;
             } else {

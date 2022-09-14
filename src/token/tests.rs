@@ -15,7 +15,7 @@ mod tokenize_tests {
     use crate::{Int, Param, ParamType, Token, TokenValue, Uint};
     // use serde::Serialize;
     use std::collections::{BTreeMap, HashMap};
-    use crate::token::{Detokenizer, Tokenizer};
+    use crate::token::{Detokenizer, MapKeyTokenValue, Tokenizer};
     use ton_block::{MsgAddress};
     use ton_types::{AccountId, BuilderData, SliceData};
     use smallvec::smallvec;
@@ -535,24 +535,24 @@ mod tokenize_tests {
         ];
 
         let mut expected_tokens = vec![];
-        let mut map = BTreeMap::<String, TokenValue>::new();
-        map.insert(format!("{}",  -12i8), TokenValue::Uint(Uint::new(42, 32)));
-        map.insert(format!("{}",  127i8), TokenValue::Uint(Uint::new(37, 32)));
-        map.insert(format!("{}", -128i8), TokenValue::Uint(Uint::new(56, 32)));
+        let mut map = BTreeMap::<MapKeyTokenValue, TokenValue>::new();
+        map.insert(MapKeyTokenValue::Int(Int::new(-12, 8)), TokenValue::Uint(Uint::new(42, 32)));
+        map.insert(MapKeyTokenValue::Int(Int::new(127, 8)), TokenValue::Uint(Uint::new(37, 32)));
+        map.insert(MapKeyTokenValue::Int(Int::new(-128, 8)), TokenValue::Uint(Uint::new(56, 32)));
         expected_tokens.push(Token::new("a", TokenValue::Map(ParamType::Int(8), ParamType::Uint(32), map)));
 
-        let mut map = BTreeMap::<String, TokenValue>::new();
-        map.insert(format!("{}", 0xFFFFFFFFu32), TokenValue::Uint(Uint::new(777, 32)));
-        map.insert(format!("{}", 0x0000FFFFu32), TokenValue::Uint(Uint::new(  0, 32)));
+        let mut map = BTreeMap::<MapKeyTokenValue, TokenValue>::new();
+        map.insert(MapKeyTokenValue::Uint(Uint::new(0xFFFFFFFF, 32)), TokenValue::Uint(Uint::new(777, 32)));
+        map.insert(MapKeyTokenValue::Uint(Uint::new(0x0000FFFF, 32)), TokenValue::Uint(Uint::new(  0, 32)));
         expected_tokens.push(Token::new("b", TokenValue::Map(ParamType::Uint(32), ParamType::Uint(32), map)));
 
 
-        let mut map = BTreeMap::<String, TokenValue>::new();
-        map.insert(format!("{}", 1i8), TokenValue::Tuple(vec![
+        let mut map = BTreeMap::<MapKeyTokenValue, TokenValue>::new();
+        map.insert(MapKeyTokenValue::Int(Int::new(1, 8)), TokenValue::Tuple(vec![
             Token::new("q1", TokenValue::Uint(Uint::new(314, 32))),
             Token::new("q2", TokenValue::Int(Int::new(15, 8))),
         ]));
-        map.insert(format!("{}", 2i8), TokenValue::Tuple(vec![
+        map.insert(MapKeyTokenValue::Int(Int::new(2, 8)), TokenValue::Tuple(vec![
             Token::new("q1", TokenValue::Uint(Uint::new(92, 32))),
             Token::new("q2", TokenValue::Int(Int::new(6, 8))),
         ]));
@@ -571,9 +571,9 @@ mod tokenize_tests {
             map
         )));
 
-        let mut map = BTreeMap::<String, TokenValue>::new();
+        let mut map = BTreeMap::<MapKeyTokenValue, TokenValue>::new();
         map.insert(
-            format!("{}", MsgAddress::with_standart(None, 0, AccountId::from([0x11; 32])).unwrap()),
+            MapKeyTokenValue::Address(MsgAddress::with_standart(None, 0, AccountId::from([0x11; 32])).unwrap()),
             TokenValue::Uint(Uint::new(123, 32)));
         expected_tokens.push(Token::new("d", TokenValue::Map(ParamType::Address, ParamType::Uint(32), map)));
 
@@ -969,7 +969,7 @@ mod tokenize_tests {
 }
 
 mod types_check_tests {
-    use crate::{Int, Param, ParamType, Token, TokenValue, Uint};
+    use crate::{Int, Param, ParamType, Token, MapKeyTokenValue, TokenValue, Uint};
     use ton_block::MsgAddress;
     use ton_types::Cell;
     use std::collections::BTreeMap;
@@ -986,8 +986,8 @@ mod types_check_tests {
 
         let big_int = Int::new(123, 64);
         let big_uint = Uint::new(456, 32);
-        let mut map = BTreeMap::<String, TokenValue>::new();
-        map.insert("1".to_string(), TokenValue::Uint(Uint::new(17, 32)));
+        let mut map = BTreeMap::<MapKeyTokenValue, TokenValue>::new();
+        map.insert(MapKeyTokenValue::Int(Int::new(1, 8)), TokenValue::Uint(Uint::new(17, 32)));
 
         let tokens = vec![
             Token {
@@ -1049,7 +1049,7 @@ mod types_check_tests {
             },
             Token {
                 name: "m1".to_owned(),
-                value: TokenValue::Map(ParamType::Int(8), ParamType::Bool, BTreeMap::<String, TokenValue>::new())
+                value: TokenValue::Map(ParamType::Int(8), ParamType::Bool, Default::default())
             },
             Token {
                 name: "m2".to_owned(),

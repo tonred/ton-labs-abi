@@ -31,7 +31,7 @@ pub const ABI_VERSION_2_1: AbiVersion = AbiVersion::from_parts(2, 1);
 pub const ABI_VERSION_2_2: AbiVersion = AbiVersion::from_parts(2, 2);
 pub const ABI_VERSION_2_3: AbiVersion = AbiVersion::from_parts(2, 3);
 
-#[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, PartialOrd)]
 pub struct AbiVersion {
     pub major: u8,
     pub minor: u8,
@@ -73,7 +73,7 @@ impl From<u8> for AbiVersion {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Deserialize)]
 pub struct DataItem {
     pub key: u64,
     #[serde(flatten)]
@@ -126,7 +126,7 @@ where
 }
 
 /// Contract function specification.
-#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Deserialize)]
 pub struct SerdeFunction {
     /// Function name.
     pub name: String,
@@ -143,7 +143,7 @@ pub struct SerdeFunction {
 }
 
 /// Contract event specification.
-#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Deserialize)]
 pub struct SerdeEvent {
     /// Event name.
     pub name: String,
@@ -159,7 +159,7 @@ fn bool_true() -> bool {
     true
 }
 
-#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Deserialize)]
 pub struct SerdeContract {
     /// ABI version up to 2.
     #[serde(rename="ABI version")]
@@ -192,7 +192,7 @@ pub struct DecodedMessage {
 }
 
 /// API building calls to contracts ABI.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Contract {
     /// ABI version
     pub abi_version: AbiVersion,

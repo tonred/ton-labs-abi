@@ -13,13 +13,13 @@
 
 use num_bigint::{BigInt, BigUint};
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Int {
     pub number: BigInt,
     pub size: usize,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Uint {
     pub number: BigUint,
     pub size: usize,

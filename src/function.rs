@@ -25,7 +25,7 @@ use ton_block::{Serializable, MsgAddressInt};
 use ton_types::{BuilderData, fail, IBitstring, Result, SliceData};
 
 /// Contract function specification.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Function {
     /// ABI version
     pub abi_version: AbiVersion,
