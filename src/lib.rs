@@ -33,6 +33,8 @@ pub mod token;
 pub mod json_abi;
 pub mod error;
 
+mod signature;
+
 pub use param_type::ParamType;
 pub use contract::{Contract, DataItem};
 pub use token::{Token, MapKeyTokenValue, TokenValue};
@@ -42,6 +44,8 @@ pub use json_abi::*;
 pub use param::Param;
 pub use int::{Int, Uint};
 pub use error::*;
+
+pub use signature::*;
 
 #[cfg(test)]
 extern crate rand;

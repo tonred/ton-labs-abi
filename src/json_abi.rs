@@ -30,7 +30,7 @@ pub fn encode_function_call(
     header: Option<&str>,
     parameters: &str,
     internal: bool,
-    pair: Option<&Keypair>,
+    pair: Option<(&Keypair, Option<i32>)>,
     address: Option<String>,
 ) -> Result<BuilderData> {
     let contract = Contract::load(abi)?;
@@ -45,7 +45,7 @@ pub fn encode_function_call(
     };
     // add public key into header
     if pair.is_some() && header_tokens.get("pubkey").is_none() {
-        header_tokens.insert("pubkey".to_owned(), TokenValue::PublicKey(pair.map(|pair| pair.public)));
+        header_tokens.insert("pubkey".to_owned(), TokenValue::PublicKey(pair.map(|(pair, _)| pair.public)));
     }
 
     let v: Value = serde_json::from_str(parameters).map_err(|err| AbiError::SerdeError { err } )?;

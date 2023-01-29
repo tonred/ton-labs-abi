@@ -16,7 +16,7 @@
 use crate::{contract::{ABI_VERSION_1_0, ABI_VERSION_2_3}, error::AbiError, param::Param, param_type::ParamType, token::{SerializedValue, Token, TokenValue}};
 
 use crate::contract::{AbiVersion, SerdeFunction};
-use ed25519::signature::Signer;
+use crate::signature::sign_with_signature_id;
 use ed25519_dalek::{Keypair, SIGNATURE_LENGTH};
 use sha2::{Digest, Sha256};
 use smallvec::SmallVec;
@@ -210,7 +210,7 @@ impl Function {
         header: &HashMap<String, TokenValue>,
         input: &[Token],
         internal: bool,
-        pair: Option<&Keypair>,
+        pair: Option<(&Keypair, Option<i32>)>,
         address: Option<MsgAddressInt>,
     ) -> Result<BuilderData> {
         let (mut builder, hash) =
@@ -218,11 +218,11 @@ impl Function {
 
         if !internal {
             builder = match pair {
-                Some(pair) => {
-                    let signature = pair.sign(hash.as_slice()).to_bytes().to_vec();
+                Some((pair, signature_id)) => {
+                    let signature = sign_with_signature_id(pair, hash.as_slice(), signature_id);
                     Self::fill_sign(
                         &self.abi_version,
-                        Some(&signature),
+                        Some(&signature.to_bytes()),
                         Some(&pair.public.to_bytes()),
                         builder)?
                 },
