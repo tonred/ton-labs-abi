@@ -11,7 +11,7 @@ const PUB_KEY: [u8; ed25519_dalek::PUBLIC_KEY_LENGTH] = [
 
 #[test]
 fn test_pubkey() -> Result<()> {
-    let mut si_roots = deserialize_cells_tree(&mut DEPOOL_TVC)?;
+    let mut si_roots = deserialize_cells_tree(&mut DEPOOL_TVC.as_ref())?;
     assert_eq!(si_roots.len(), 1);
 
     let state_init = StateInit::construct_from(&mut SliceData::from(si_roots.remove(0)))?;

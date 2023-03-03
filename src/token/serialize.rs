@@ -205,6 +205,13 @@ impl TokenValue {
             builder.append_raw(&vec_padding, dif)?;
             builder.append_raw(&vec, value.size - dif)?;
         } else {
+            let number_bits = value.number.bits();
+            if number_bits > value.size as u64 {
+                fail!(AbiError::InvalidData {
+                    msg: format!("Too many bits in value to fit into u?int{}: {}", value.size, number_bits)
+                });
+            }
+
             let offset = vec_bits_length - value.size;
             let first_byte = vec[offset / 8] << (offset % 8);
 
@@ -423,4 +430,25 @@ fn test_pack_cells() {
     let builder = BuilderData::with_raw_and_refs(smallvec![0x55; 100], 100 * 8, vec![builder.into_cell().unwrap()]).unwrap();
     let tree = TokenValue::pack_cells_into_chain(cells, &ABI_VERSION_1_0).unwrap();
     assert_eq!(tree, builder);
+}
+
+#[test]
+fn test_int_overflow() {
+    assert!(
+        TokenValue::Uint(Uint {
+            number: BigUint::from(u32::MAX),
+            size: 16,
+        })
+        .pack_into_chain(&ABI_VERSION_2_2)
+        .is_err()
+    );
+
+    assert!(
+        TokenValue::Uint(Uint {
+            number: BigUint::from(u16::MAX as u32 + 1),
+            size: 16,
+        })
+        .pack_into_chain(&ABI_VERSION_2_2)
+        .is_err()
+    );
 }

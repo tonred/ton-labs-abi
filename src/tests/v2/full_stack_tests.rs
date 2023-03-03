@@ -213,7 +213,7 @@ fn test_signed_call() {
         None,
         params,
         false,
-        Some(&pair),
+        Some((&pair, None)),
         None,
     )
     .unwrap();

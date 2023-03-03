@@ -208,7 +208,7 @@ fn test_signed_call() {
         Some(header),
         params,
         false,
-        Some(&pair),
+        Some((&pair, None)),
         None,
     )
     .unwrap();
