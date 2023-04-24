@@ -157,8 +157,8 @@ fn test_constructor_call() {
     expected_tree.append_bit_zero().unwrap();       // None for public key
     expected_tree.append_u32(0x68B55F3F).unwrap();  // function id
 
-    let test_tree = SliceData::from(test_tree.into_cell().unwrap());
-    let expected_tree = SliceData::from(expected_tree.into_cell().unwrap());
+    let test_tree = test_tree.into_cell().and_then(SliceData::load_cell).unwrap();
+    let expected_tree = expected_tree.into_cell().and_then(SliceData::load_cell).unwrap();
     assert_eq!(test_tree, expected_tree);
 
     let response = decode_unknown_function_call(
@@ -218,7 +218,7 @@ fn test_signed_call() {
     )
     .unwrap();
 
-    let mut test_tree = SliceData::from(test_tree.into_cell().unwrap());
+    let mut test_tree = test_tree.into_cell().and_then(SliceData::load_cell).unwrap();
 
     let response = decode_unknown_function_call(
         WALLET_ABI,
@@ -245,17 +245,18 @@ fn test_signed_call() {
     let sign = &test_tree.get_next_bytes(ed25519_dalek::SIGNATURE_LENGTH).unwrap();
     let sign = Signature::from_bytes(sign).unwrap();
 
-    assert_eq!(test_tree, SliceData::from(expected_tree.into_cell().unwrap()));
+    assert_eq!(test_tree, expected_tree.into_cell().and_then(SliceData::load_cell).unwrap());
 
     let hash = test_tree.into_cell().repr_hash();
     pair.verify(hash.as_slice(), &sign).unwrap();
 
     let expected_response = r#"{"value0":"0"}"#;
 
-    let response_tree = SliceData::from(
+    let response_tree = SliceData::load_builder(
         BuilderData::with_bitstring(
             smallvec![0xA2, 0x38, 0xB5, 0x8A, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80])
-        .unwrap().into_cell().unwrap());
+            .unwrap()
+        ).unwrap();
 
     let response = decode_function_response(
         WALLET_ABI,
@@ -334,19 +335,19 @@ fn test_add_signature_full() {
         WALLET_ABI,
         &signature,
         Some(&pair.public.to_bytes()),
-        msg.into_cell().unwrap().into()).unwrap();
+        msg.into_cell().and_then(SliceData::load_cell).unwrap()).unwrap();
 
-    let decoded = decode_unknown_function_call(WALLET_ABI, msg.into_cell().unwrap().into(), false).unwrap();
+    let decoded = decode_unknown_function_call(WALLET_ABI, msg.into_cell().and_then(SliceData::load_cell).unwrap(), false).unwrap();
 
     assert_eq!(decoded.params, params);
 }
 
 #[test]
 fn test_find_event() {
-    let event_tree = SliceData::from(
+    let event_tree = SliceData::load_builder(
         BuilderData::with_bitstring(
             smallvec![0x0C, 0xAF, 0x24, 0xBE, 0xFF, 0x80])
-        .unwrap().into_cell().unwrap());
+        .unwrap()).unwrap();
 
     let decoded = decode_unknown_function_response(WALLET_ABI, event_tree, false).unwrap();
 
@@ -359,17 +360,17 @@ fn test_store_pubkey() {
     let mut test_map = HashmapE::with_bit_len(Contract::DATA_MAP_KEYLEN);
     let test_pubkey = vec![11u8; 32];
     test_map.set_builder(
-        0u64.serialize().unwrap().into(),
+        0u64.serialize().and_then(SliceData::load_cell).unwrap(),
         &BuilderData::with_raw(smallvec![0u8; 32], 256).unwrap(),
     ).unwrap();
 
     let data = test_map.serialize().unwrap();
 
-    let new_data = Contract::insert_pubkey(data.into(), &test_pubkey).unwrap();
+    let new_data = Contract::insert_pubkey(SliceData::load_cell(data).unwrap(), &test_pubkey).unwrap();
 
     let new_map = HashmapE::with_hashmap(Contract::DATA_MAP_KEYLEN, new_data.reference_opt(0));
     let key_slice = new_map.get(
-        0u64.serialize().unwrap().into(),
+        0u64.serialize().and_then(SliceData::load_cell).unwrap(),
     )
     .unwrap()
     .unwrap();
@@ -381,7 +382,7 @@ fn test_store_pubkey() {
 fn test_update_decode_contract_data() {
     let mut test_map = HashmapE::with_bit_len(Contract::DATA_MAP_KEYLEN);
     test_map.set_builder(
-        0u64.serialize().unwrap().into(),
+        0u64.serialize().and_then(SliceData::load_cell).unwrap(),
         &BuilderData::with_raw(smallvec![0u8; 32], 256).unwrap(),
     ).unwrap();
 
@@ -391,13 +392,13 @@ fn test_update_decode_contract_data() {
      }
     "#;
 
-    let data = test_map.serialize().unwrap();
-    let new_data = update_contract_data(WALLET_ABI, params, data.into()).unwrap();
+    let data = test_map.serialize().and_then(SliceData::load_cell).unwrap();
+    let new_data = update_contract_data(WALLET_ABI, params, data).unwrap();
     let new_map = HashmapE::with_hashmap(Contract::DATA_MAP_KEYLEN, new_data.reference_opt(0));
 
 
     let key_slice = new_map.get(
-        0u64.serialize().unwrap().into(),
+        0u64.serialize().and_then(SliceData::load_cell).unwrap(),
     )
     .unwrap()
     .unwrap();
@@ -406,18 +407,18 @@ fn test_update_decode_contract_data() {
 
 
     let subscription_slice = new_map.get(
-        101u64.serialize().unwrap().into(),
+        101u64.serialize().and_then(SliceData::load_cell).unwrap(),
     )
     .unwrap()
     .unwrap();
 
     assert_eq!(
         subscription_slice,
-        MsgAddressInt::with_standart(None, 0, vec![0x11; 32].into()).unwrap().serialize().unwrap().into());
+        MsgAddressInt::with_standart(None, 0, [0x11; 32].into()).unwrap().serialize().and_then(SliceData::load_cell).unwrap());
 
 
     let owner_slice = new_map.get(
-        100u64.serialize().unwrap().into(),
+        100u64.serialize().and_then(SliceData::load_cell).unwrap(),
     )
     .unwrap()
     .unwrap();
@@ -450,7 +451,7 @@ fn test_decode_storage_fields() {
     storage.append_bit_one().unwrap();
     storage.append_u32(456).unwrap();
 
-    let decoded = decode_storage_fields(ABI_WITH_FIELDS, storage.into_cell().unwrap().into()).unwrap();
+    let decoded = decode_storage_fields(ABI_WITH_FIELDS, SliceData::load_builder(storage).unwrap()).unwrap();
 
     assert_eq!(decoded, serde_json::json!({
         "__pubkey": format!("0x{}", hex::encode([0x55; 32])),
@@ -458,4 +459,80 @@ fn test_decode_storage_fields() {
         "ok": true,
         "value": "456"
     }).to_string());
+}
+
+fn value_helper(abi_type: &str, value: &str) -> Result<BuilderData> {
+    let abi = serde_json::json!({
+        "ABI version": 2,
+        "version": "2.3",
+        "functions": [
+          {"name": "test","inputs": [{"name":"value","type":abi_type}],"outputs": []}
+        ],
+        "events": [],
+        "data": []
+    }).to_string();
+    let params = serde_json::json!({"value": value}).to_string();
+    encode_function_call(
+        &abi,
+        "test",
+        None,
+        &params,
+        false,
+        None,
+        None,
+    )
+}
+
+#[test]
+fn test_max_varuint32() {
+    // value max bit size (2 ** log2(32) - 1) * 8
+    let value = "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
+    let encoded = value_helper("varuint32", value).unwrap();
+
+    assert_eq!(
+        encoded.data(),
+        &hex::decode("1869a0307ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffc").unwrap()
+    );
+    assert_eq!(encoded.length_in_bits(), 286);
+    assert_eq!(encoded.references().len(), 0);
+}
+
+#[test]
+fn test_max_varint32() {
+    // value max bit size (2 ** log2(32) - 1) * 8
+    let value = "0x7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
+    let encoded = value_helper("varint32", value).unwrap();
+
+    assert_eq!(
+        encoded.data(),
+        &hex::decode("30d82fc87dfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffc").unwrap()
+    );
+    assert_eq!(encoded.length_in_bits(), 286);
+    assert_eq!(encoded.references().len(), 0);
+}
+
+#[test]
+fn test_max_uint() {
+    let value = "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
+    let encoded = value_helper("uint256", value).unwrap();
+
+    assert_eq!(
+        encoded.data(),
+        &hex::decode("3a8707b37fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff80").unwrap()
+    );
+    assert_eq!(encoded.length_in_bits(), 289);
+    assert_eq!(encoded.references().len(), 0);
+}
+
+#[test]
+fn test_max_int() {
+    let value = "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
+    let encoded = value_helper("int257", value).unwrap();
+
+    assert_eq!(
+        encoded.data(),
+        &hex::decode("088fb044bfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffc0").unwrap()
+    );
+    assert_eq!(encoded.length_in_bits(), 290);
+    assert_eq!(encoded.references().len(), 0);
 }

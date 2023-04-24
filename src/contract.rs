@@ -325,12 +325,12 @@ impl Contract {
                 .key;
 
                 map.set_builder(
-                    key.serialize()?.into(),
+                    key.serialize().and_then(SliceData::load_cell)?,
                     &builder,
                 )?;
         }
 
-        Ok(map.serialize()?.into())
+        map.serialize().and_then(SliceData::load_cell)
     }
 
     /// Decode initial values of public contract variables
@@ -342,7 +342,7 @@ impl Contract {
 
         let mut tokens = vec![];
         for item in self.data.values() {
-            if let Some(value) = map.get(item.key.serialize()?.into())? {
+            if let Some(value) = map.get(item.key.serialize().and_then(SliceData::load_cell)?)? {
                 tokens.append(
                     &mut TokenValue::decode_params(&[item.value.clone()], value, &self.abi_version, false)?
                 );
@@ -358,7 +358,7 @@ impl Contract {
             Self::DATA_MAP_KEYLEN,
             data.reference_opt(0),
         );
-        map.get(0u64.serialize()?.into())
+        map.get(0u64.serialize().and_then(SliceData::load_cell)?)
             .map(|opt| opt.map(|slice| slice.get_bytestring(0)))
     }
 
@@ -373,10 +373,10 @@ impl Contract {
             data.reference_opt(0)
         );
         map.set_builder(
-            0u64.serialize()?.into(),
+            0u64.serialize().and_then(SliceData::load_cell)?,
             &value,
         )?;
-        Ok(map.serialize()?.into())
+        map.serialize().and_then(SliceData::load_cell)
     }
 
     /// Add sign to messsage body returned by `prepare_input_for_sign` function

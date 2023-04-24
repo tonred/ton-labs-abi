@@ -233,7 +233,7 @@ impl Tokenizer {
 
     /// Checks if given number can be fit into given bits count
     fn check_uint_size(number: &BigUint, size: usize) -> bool {
-        number.bits() < size as u64
+        number.bits() <= size as u64
     }
 
     /// Tries to parse a value as grams.
@@ -243,7 +243,8 @@ impl Tokenizer {
         if !Self::check_uint_size(&number, 120) {
             fail!(AbiError::InvalidParameterValue { val: value.clone() } )
         } else {
-            Ok(TokenValue::Token(Grams::from(number)))
+            let number = number.to_u128().unwrap_or_default();
+            Grams::new(number).map(TokenValue::Token)
         }
     }
 
@@ -251,7 +252,7 @@ impl Tokenizer {
     fn tokenize_uint(size: usize, value: &Value) -> Result<TokenValue> {
         let number = Self::read_uint(value)?;
 
-        if !Self::check_uint_size(&number, size + 1) {
+        if !Self::check_uint_size(&number, size) {
             fail!(AbiError::InvalidParameterValue { val: value.clone() } )
         } else {
             Ok(TokenValue::Uint(Uint{number, size}))

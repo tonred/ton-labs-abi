@@ -124,7 +124,7 @@ impl Function {
         // Sha256 hash of signature
         let mut hasher = Sha256::new();
 
-        hasher.update(&signature.as_bytes());
+        hasher.update(signature.as_bytes());
 
         let function_hash = hasher.finalize();
 
@@ -360,7 +360,7 @@ impl Function {
             let mut sign_builder = BuilderData::new();
             if self.abi_version.major == 1 {
                 // reserve reference for sign
-                sign_builder.append_reference(BuilderData::new());
+                sign_builder.checked_append_reference(ton_types::Cell::default())?;
                 remove_ref = true;
             } else {
                 // reserve in-cell data
@@ -390,7 +390,7 @@ impl Function {
 
         if !internal {
             // delete reserved sign before hash
-            let mut slice = SliceData::from(builder.into_cell()?);
+            let mut slice = builder.into_cell().and_then(SliceData::load_cell)?;
             if remove_ref {
                 slice.checked_drain_reference()?;
             }
@@ -443,7 +443,7 @@ impl Function {
         let mut sign_builder = BuilderData::new();
         if self.abi_version.major == 1 {
             // reserve reference for sign
-            sign_builder.append_reference(BuilderData::new());
+            sign_builder.checked_append_reference(ton_types::Cell::default())?;
             remove_ref = true;
         } else {
             sign_builder.append_bit_zero()?;
@@ -459,7 +459,7 @@ impl Function {
         let mut builder = TokenValue::pack_values_into_chain(input, cells, &self.abi_version)?;
 
         // delete reserved sign before hash
-        let mut slice = SliceData::from(builder.into_cell()?);
+        let mut slice = SliceData::load_builder(builder)?;
         if remove_ref {
             slice.checked_drain_reference()?;
         }
@@ -475,7 +475,7 @@ impl Function {
                     msg: "No free reference for signature".to_owned()
                 });
             }
-            builder.prepend_reference(BuilderData::new());
+            builder.checked_append_reference(ton_types::Cell::default())?;
         } else {
             // sign in cell body
             let mut sign_builder = BuilderData::new();
@@ -508,9 +508,9 @@ impl Function {
                 }
 
                 let len = signature.len() * 8;
-                builder.prepend_reference(BuilderData::with_raw(signature, len)?);
+                builder.checked_prepend_reference(BuilderData::with_raw(signature, len)?.into_cell()?)?;
             } else {
-                builder.prepend_reference(BuilderData::new());
+                builder.checked_prepend_reference(ton_types::Cell::default())?;
             }
         } else {
             // sign in cell body

@@ -149,10 +149,10 @@ fn test_constructor_call() {
     ).unwrap();
 
     let mut expected_tree = BuilderData::with_bitstring(smallvec![0x54, 0xc1, 0xf4, 0x0f, 0x80]).unwrap();
-    expected_tree.prepend_reference(BuilderData::new());
+    expected_tree.checked_prepend_reference(ton_types::Cell::default()).unwrap();
 
-    let test_tree = SliceData::from(test_tree.into_cell().unwrap());
-    let expected_tree = SliceData::from(expected_tree.into_cell().unwrap());
+    let test_tree = SliceData::load_builder(test_tree).unwrap();
+    let expected_tree = SliceData::load_builder(expected_tree).unwrap();
     assert_eq!(test_tree, expected_tree);
 
     let response = decode_unknown_function_call(
@@ -213,7 +213,7 @@ fn test_signed_call() {
     )
     .unwrap();
 
-    let mut test_tree = SliceData::from(test_tree.into_cell().unwrap());
+    let mut test_tree = SliceData::load_builder(test_tree).unwrap();
 
     let response = decode_unknown_function_call(
         WALLET_ABI,
@@ -233,20 +233,20 @@ fn test_signed_call() {
 
     let expected_tree = BuilderData::with_bitstring(vec).unwrap();
 
-    let mut sign = SliceData::from(test_tree.checked_drain_reference().unwrap());
+    let mut sign = SliceData::load_cell(test_tree.checked_drain_reference().unwrap()).unwrap();
     let sign = Signature::from_bytes(sign.get_next_bytes(64).unwrap().as_slice()).unwrap();
 
-    assert_eq!(test_tree, SliceData::from(expected_tree.into_cell().unwrap()));
+    assert_eq!(test_tree, SliceData::load_builder(expected_tree).unwrap());
 
     let hash = test_tree.into_cell().repr_hash();
     pair.verify(hash.as_slice(), &sign).unwrap();
 
     let expected_response = r#"{"value0":"0"}"#;
 
-    let response_tree = SliceData::from(
+    let response_tree = SliceData::load_builder(
         BuilderData::with_bitstring(
             smallvec![0xBC, 0x0B, 0xB9, 0xBC, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80])
-        .unwrap().into_cell().unwrap());
+        .unwrap()).unwrap();
 
     let response = decode_function_response(
         WALLET_ABI,
@@ -291,7 +291,7 @@ fn test_not_signed_call() {
     let mut expected_tree = BuilderData::with_bitstring(smallvec![
             0x23, 0xF3, 0x3E, 0x2F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x80
         ]).unwrap();
-    expected_tree.prepend_reference(BuilderData::new());
+    expected_tree.checked_prepend_reference(ton_types::Cell::default()).unwrap();
 
     assert_eq!(test_tree, expected_tree);
 }
@@ -317,19 +317,19 @@ fn test_add_signature_full() {
         WALLET_ABI,
         &signature,
         Some(&pair.public.to_bytes()),
-        msg.into_cell().unwrap().into()).unwrap();
+        SliceData::load_builder(msg).unwrap()).unwrap();
 
-    let decoded = decode_unknown_function_call(WALLET_ABI, msg.into_cell().unwrap().into(), false).unwrap();
+    let decoded = decode_unknown_function_call(WALLET_ABI, SliceData::load_builder(msg).unwrap(), false).unwrap();
 
     assert_eq!(decoded.params, params);
 }
 
 #[test]
 fn test_find_event() {
-    let event_tree = SliceData::from(
+    let event_tree = SliceData::load_builder(
         BuilderData::with_bitstring(
             smallvec![0x13, 0x47, 0xD7, 0x9D, 0xFF, 0x80])
-        .unwrap().into_cell().unwrap());
+        .unwrap()).unwrap();
 
     let decoded = decode_unknown_function_response(WALLET_ABI, event_tree, false).unwrap();
 
@@ -342,17 +342,17 @@ fn test_store_pubkey() {
     let mut test_map = HashmapE::with_bit_len(Contract::DATA_MAP_KEYLEN);
     let test_pubkey = vec![11u8; 32];
     test_map.set_builder(
-        0u64.serialize().unwrap().into(),
+        0u64.serialize().and_then(SliceData::load_cell).unwrap(),
         &BuilderData::with_raw(smallvec![0u8; 32], 256).unwrap(),
     ).unwrap();
 
-    let data = test_map.serialize().unwrap();
+    let data = test_map.serialize().and_then(SliceData::load_cell).unwrap();
 
-    let new_data = Contract::insert_pubkey(data.into(), &test_pubkey).unwrap();
+    let new_data = Contract::insert_pubkey(data, &test_pubkey).unwrap();
 
     let new_map = HashmapE::with_hashmap(Contract::DATA_MAP_KEYLEN, new_data.reference_opt(0));
     let key_slice = new_map.get(
-        0u64.serialize().unwrap().into(),
+        0u64.serialize().and_then(SliceData::load_cell).unwrap(),
     )
     .unwrap()
     .unwrap();
@@ -364,7 +364,7 @@ fn test_store_pubkey() {
 fn test_update_decode_contract_data() {
     let mut test_map = HashmapE::with_bit_len(Contract::DATA_MAP_KEYLEN);
     test_map.set_builder(
-        0u64.serialize().unwrap().into(),
+        0u64.serialize().and_then(SliceData::load_cell).unwrap(),
         &BuilderData::with_raw(smallvec![0u8; 32], 256).unwrap(),
     ).unwrap();
 
@@ -374,13 +374,13 @@ fn test_update_decode_contract_data() {
      }
     "#;
 
-    let data = test_map.serialize().unwrap();
-    let new_data = update_contract_data(WALLET_ABI, params, data.into()).unwrap();
+    let data = test_map.serialize().and_then(SliceData::load_cell).unwrap();
+    let new_data = update_contract_data(WALLET_ABI, params, data).unwrap();
     let new_map = HashmapE::with_hashmap(Contract::DATA_MAP_KEYLEN, new_data.reference_opt(0));
 
 
     let key_slice = new_map.get(
-        0u64.serialize().unwrap().into(),
+        0u64.serialize().and_then(SliceData::load_cell).unwrap(),
     )
     .unwrap()
     .unwrap();
@@ -389,18 +389,18 @@ fn test_update_decode_contract_data() {
 
 
     let subscription_slice = new_map.get(
-        101u64.serialize().unwrap().into(),
+        101u64.serialize().and_then(SliceData::load_cell).unwrap(),
     )
     .unwrap()
     .unwrap();
 
     assert_eq!(
         subscription_slice,
-        MsgAddressInt::with_standart(None, 0, [0x11; 32].into()).unwrap().serialize().unwrap().into());
+        MsgAddressInt::with_standart(None, 0, [0x11; 32].into()).unwrap().serialize().and_then(SliceData::load_cell).unwrap());
 
 
     let owner_slice = new_map.get(
-        100u64.serialize().unwrap().into(),
+        100u64.serialize().and_then(SliceData::load_cell).unwrap(),
     )
     .unwrap()
     .unwrap();

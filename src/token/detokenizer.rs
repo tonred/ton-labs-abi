@@ -30,7 +30,7 @@ impl Detokenizer {
     }
 
     pub fn detokenize_to_json_value(tokens: &[Token]) -> Result<serde_json::Value> {
-        Ok(serde_json::to_value(&FunctionParams{params: tokens})?)
+        Ok(serde_json::to_value(FunctionParams{params: tokens})?)
     }
 
     pub fn detokenize_optional(tokens: &HashMap<String, TokenValue>) -> Result<String> {
@@ -42,7 +42,7 @@ impl Detokenizer {
     }
 
     pub fn detokenize_optional_to_json_value(tokens: &HashMap<String, TokenValue>) -> Result<serde_json::Value> {
-        serde_json::to_value(&tokens).map_err(|err| err.into())
+        serde_json::to_value(tokens).map_err(|err| err.into())
     }
 }
 

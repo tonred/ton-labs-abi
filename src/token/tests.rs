@@ -90,7 +90,7 @@ mod tokenize_tests {
                 name: "f".to_owned(),
                 value: TokenValue::Int(Int::new(-12345678900987654321i128, 128)),
             },
-            Token::new("g", TokenValue::Token(max_gram.into())),
+            Token::new("g", TokenValue::Token(max_gram.try_into().unwrap())),
             Token {
                 name: "h".to_owned(),
                 value: TokenValue::VarInt(16, (-1000i32).into()),
@@ -479,8 +479,8 @@ mod tokenize_tests {
 
         let mut expected_tokens = vec![];
         let mut builder = BuilderData::with_bitstring(smallvec![1, 2, 3, 4, 5, 6, 7, 8, 0x80]).unwrap();
-        builder.append_reference(BuilderData::with_bitstring(smallvec![11, 12, 13, 14, 15, 16, 17, 18, 0x80]).unwrap());
-        builder.append_reference(BuilderData::with_bitstring(smallvec![21, 22, 23, 24, 25, 26, 27, 28, 0x80]).unwrap());
+        builder.checked_append_reference(BuilderData::with_bitstring(smallvec![11, 12, 13, 14, 15, 16, 17, 18, 0x80]).unwrap().into_cell().unwrap()).unwrap();
+        builder.checked_append_reference(BuilderData::with_bitstring(smallvec![21, 22, 23, 24, 25, 26, 27, 28, 0x80]).unwrap().into_cell().unwrap()).unwrap();
         expected_tokens.push(Token::new("a", TokenValue::Cell(builder.into_cell().unwrap())));
         expected_tokens.push(Token::new("b", TokenValue::Cell(Default::default())));
 
@@ -1065,7 +1065,7 @@ mod types_check_tests {
             },
             Token {
                 name: "p".to_owned(),
-                value: TokenValue::Token(17u32.into())
+                value: TokenValue::Token(17u64.into())
             },
             Token {
                 name: "q".to_owned(),

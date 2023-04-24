@@ -122,7 +122,7 @@ impl TokenValue {
         }
         Ok(packed_cells.into_iter().rev().reduce(
             |acc, mut cur| {
-                cur.data.append_reference(acc.data);
+                cur.data.checked_append_reference(acc.data.into_cell().unwrap()).unwrap();
                 cur
             })
             .unwrap()
@@ -231,6 +231,15 @@ impl TokenValue {
         Self::write_int(&int)
     }
 
+    fn write_varnumber(vec: &[u8], size: usize) -> Result<BuilderData> {
+        let mut builder = BuilderData::new();
+        let bits = ParamType::varint_size_len(size);
+        builder.append_bits(vec.len(), bits)?;
+        builder.append_raw(vec, vec.len() * 8)?;
+
+        Ok(builder)
+    }
+
     fn write_varint(value: &BigInt, size: usize) -> Result<BuilderData> {
         let vec = value.to_signed_bytes_be();
 
@@ -239,19 +248,18 @@ impl TokenValue {
                 msg: format!("Too long value for varint{}: {}", size, value)
             });
         }
-
-        let mut builder = BuilderData::new();
-        let bits = ParamType::varint_size_len(size);
-        builder.append_bits(vec.len(), bits as usize)?;
-        builder.append_raw(&vec, vec.len() * 8)?;
-
-        Ok(builder)
+        Self::write_varnumber(&vec, size)
     }
 
     fn write_varuint(value: &BigUint, size: usize) -> Result<BuilderData> {
-        let big_int = BigInt::from_biguint(Sign::Plus, value.clone());
+        let vec = value.to_bytes_be();
 
-        Self::write_varint(&big_int, size)
+        if vec.len() > size - 1 {
+            fail!(AbiError::InvalidData {
+                msg: format!("Too long value for varuint{}: {}", size, value)
+            });
+        }
+        Self::write_varnumber(&vec, size) 
     }
 
     fn write_bool(value: bool) -> Result<BuilderData> {
@@ -262,7 +270,7 @@ impl TokenValue {
 
     fn write_cell(cell: &Cell) -> Result<BuilderData> {
         let mut builder = BuilderData::new();
-        builder.append_reference_cell(cell.clone());
+        builder.checked_append_reference(cell.clone())?;
         Ok(builder)
     }
 
@@ -274,15 +282,15 @@ impl TokenValue {
         let value_in_ref = Self::map_value_in_ref(32, param_type.max_bit_size());
 
         for (i, item) in array.iter().enumerate() {
-            let index = (i as u32).serialize()?;
+            let index = (i as u32).serialize().and_then(ton_types::SliceData::load_cell)?;
 
             let data =
                 Self::pack_cells_into_chain(item.write_to_cells(abi_version)?, abi_version)?;
 
             if value_in_ref {
-                map.set_builder(index.into(), &data)?;
+                map.set_builder(index, &data)?;
             } else {
-                map.setref(index.into(), &data.into_cell()?)?;
+                map.setref(index, &data.into_cell()?)?;
             }
         }
 
@@ -322,13 +330,13 @@ impl TokenValue {
             len -= cell_capacity;
             builder.append_raw(&data[len..len + cell_capacity], cell_capacity * 8)?;
             let mut new_builder = BuilderData::new();
-            new_builder.append_reference(builder);
+            new_builder.checked_append_reference(builder.into_cell()?)?;
             builder = new_builder;
             cell_capacity = std::cmp::min(cell_len, len);
         }
         // if bytes are empty then we need builder with ref to empty cell
         if builder.references_used() == 0 {
-            builder.append_reference(BuilderData::new());
+            builder.checked_append_reference(Cell::default())?;
         }
         Ok(builder)
     }
@@ -357,7 +365,7 @@ impl TokenValue {
             let data =
                 Self::pack_cells_into_chain(value.write_to_cells(abi_version)?, abi_version)?;
 
-            let slice_key = key.into_cell()?.into();
+            let slice_key = ton_types::SliceData::load_builder(key)?;
             if value_in_ref {
                 hashmap.set_builder(slice_key, &data)?;
             } else {
