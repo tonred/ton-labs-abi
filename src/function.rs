@@ -451,8 +451,8 @@ impl Function {
         }
         cells.insert(0, SerializedValue {
             data: sign_builder,
-            max_bits: 1 + SIGNATURE_LENGTH * 8,
-            max_refs: 0
+            max_bits: if self.abi_version >= ABI_VERSION_2_3 { ParamType::Address.max_bit_size() } else { 1 + SIGNATURE_LENGTH * 8 },
+            max_refs: if remove_ref { 1 } else { 0 }
         });
 
         // encoding itself
