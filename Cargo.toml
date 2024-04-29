@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 ton_types = { git = "https://github.com/broxus/ton-labs-types.git" }
-ton_block = { git = "https://github.com/broxus/ton-labs-block.git" }
+ton_block = { git = "https://github.com/tonred/ton-labs-block.git" }
 
 base64 = "0.13.0"
 num-bigint = "0.4"
